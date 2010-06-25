@@ -976,7 +976,7 @@ getpkt (char *buf)
 
       fprintf (stderr, "Bad checksum, sentsum=0x%x, csum=0x%x, buf=%s\n",
 	       (c1 << 4) + c2, csum, buf);
-      write (remote_desc, "-", 1);
+      int err ATTR_UNUSED = write (remote_desc, "-", 1);
     }
 
   if (!noack_mode)
@@ -987,7 +987,7 @@ getpkt (char *buf)
 	  fflush (stderr);
 	}
 
-      write (remote_desc, "+", 1);
+      int err ATTR_UNUSED = write (remote_desc, "+", 1);
 
       if (remote_debug)
 	{

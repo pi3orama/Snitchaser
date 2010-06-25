@@ -572,7 +572,7 @@ main(int argc, char * argv[])
 	catch_var(const char *, interp_so_full_name, NULL);
 	define_exp(exp);
 
-	pid_t child_pid;
+	pid_t child_pid = 0;
 
 	TRY(exp) {
 		set_catched_var(interp_so_full_name,
@@ -599,6 +599,9 @@ main(int argc, char * argv[])
 	} CATCH(exp) {
 		RETHROW(exp);
 	}
+
+
+	assert(child_pid != 0);
 
 	define_exp(exp2);
 	TRY(exp2) {

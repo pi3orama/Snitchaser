@@ -7,6 +7,7 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckTypeSize)
 INCLUDE(CheckVariableExists)
+INCLUDE(CheckCCompilerFlag)
 
 INCLUDE(CheckMacro)
 INCLUDE(CheckThreaddbFunctionExists)
@@ -143,9 +144,27 @@ unset(gcc_inc)
 
 SET(MARCH ${CMAKE_SYSTEM_PROCESSOR} CACHE STRING
 	"gcc -march option")
+
+# Detect clobbered option
+
+CHECK_C_COMPILER_FLAG("-Wno-clobbered" GCC_HAVE_NO_CLOBBER)
+IF (GCC_HAVE_NO_CLOBBER)
+	SET(DETECT_CLOBBERED OFF CACHE BOOL
+		"Whether to use -Wclobbered option. Turn it off is always safe and can suppress some warning.")
+	IF (DETECT_CLOBBERED)
+		SET(clobbered_flags "")
+	ELSE (DETECT_CLOBBERED)
+		SET(clobbered_flags "-Wno-clobbered")
+	ENDIF (DETECT_CLOBBERED)
+ELSE(GCC_HAVE_NO_CLOBBER)
+	MESSAGE(WARNING "Your compiler doesn't support -Wno-clobbered option;
+	don't report any warning about var clobbered")
+ENDIF(GCC_HAVE_NO_CLOBBER)
+
+
 # Build types
 SET(MARCH_CFLAGS "-march=${MARCH} -mtune=${MARCH}")
-SET(CMAKE_C_FLAGS "-std=gnu99 -Wall -Wextra -D_GNU_SOURCE ${MARCH_CFLAGS}" CACHE
+SET(CMAKE_C_FLAGS "-std=gnu99 -Wall -Wextra -D_GNU_SOURCE ${MARCH_CFLAGS} ${clobbered_flags}" CACHE
 	STRING "Flags used by the compiler during all build types." FORCE)
 SET(CMAKE_C_FLAGS_DEBUG "-g -O0 -DSNITCHASER_DEBUG" CACHE
 	STRING "Flags used by the compiler during debug builds." FORCE)
