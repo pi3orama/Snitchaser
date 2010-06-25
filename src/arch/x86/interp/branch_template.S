@@ -4,6 +4,8 @@
  */
 
 #include <asm_offsets.h>
+#include <xasm/logger_marks.h>
+
 
 /* 
  * __set_current_block_template should be copied at the
@@ -169,13 +171,15 @@ __rdtsc_template_start:
 	rdtsc
 	movl %ebx, %fs:OFFSET_REG_SAVER1
 	movl %fs:OFFSET_LOGGER_LOG_BUFFER_CURRENT, %ebx
+	movl %eax, 4(%ebx)
+	movl %edx, 8(%ebx)
+	movl $RDTSC_MARK, %eax
 	movl %eax, (%ebx)
-	movl %edx, 4(%ebx)
 	/* this addl disturbs eflags!!! */
 	lahf
-	addl $8, %fs:OFFSET_LOGGER_LOG_BUFFER_CURRENT
+	addl $12, %fs:OFFSET_LOGGER_LOG_BUFFER_CURRENT
 	sahf
-	movl (%ebx), %eax
+	movl 4(%ebx), %eax
 	movl %fs:OFFSET_REG_SAVER1, %ebx
 __rdtsc_template_save_return_addr:
 	movl $0xffffffff, %fs:OFFSET_LOGGER_CHECK_BUFFER_RETURN

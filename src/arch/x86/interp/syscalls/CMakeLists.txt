@@ -13,6 +13,7 @@ SET(SYSCALLS
 	mmap2.c
 	write.c
 	exit_group.c
+	exit.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

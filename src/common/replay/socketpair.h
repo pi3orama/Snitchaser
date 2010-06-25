@@ -40,6 +40,27 @@ sock_send(void * data, size_t len);
 extern void
 sock_recv(void * data, size_t len);
 
+#define def_sock_sr_TYPE(t, tn)	\
+	static inline t sock_recv_##tn(void) {	\
+		t r;	\
+		sock_recv(&r, sizeof(r))	;\
+		return r;	\
+	}				\
+	static inline void	\
+	sock_send_##tn(t x)	\
+	{					\
+		sock_send(&x, sizeof(x));	\
+	}
+
+def_sock_sr_TYPE(bool_t, bool)
+def_sock_sr_TYPE(uintptr_t, ptr)
+def_sock_sr_TYPE(uint32_t, u32)
+def_sock_sr_TYPE(uint16_t, u16)
+def_sock_sr_TYPE(uint8_t, u8)
+
+#undef def_sock_sr_TYPE
+
+#if 0
 static inline bool_t
 sock_recv_bool(void)
 {
@@ -53,7 +74,7 @@ sock_send_bool(bool_t b)
 {
 	sock_send(&b, sizeof(b));
 }
-
+#endif
 
 #endif
 

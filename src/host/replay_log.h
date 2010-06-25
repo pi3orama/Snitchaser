@@ -27,6 +27,23 @@ read_log(void * buf, size_t size);
 void
 uncompress_log(const char * log_fn, const char * out_fn);
 
+#define def_read_TYPE_from_log(t, tn)	\
+	inline static t						\
+	read_##tn##_from_log(void)			\
+	{									\
+		t r;							\
+		read_log_full(&r, sizeof(r));	\
+		return r; 						\
+	}
+
+def_read_TYPE_from_log(uintptr_t, ptr)
+def_read_TYPE_from_log(uint32_t, u32)
+def_read_TYPE_from_log(uint16_t, u16)
+def_read_TYPE_from_log(uint8_t, u8)
+
+#undef def_read_TYPE_from_log
+
+#if 0
 inline static uintptr_t
 read_ptr_from_log(void)
 {
@@ -34,10 +51,10 @@ read_ptr_from_log(void)
 	read_log_full(&r, sizeof(r));
 	return r;
 }
+#endif
 
 uintptr_t
 readahead_log_ptr(void);
-
 
 #endif
 

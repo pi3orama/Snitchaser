@@ -19,6 +19,7 @@
 #include <signal.h>
 
 #include <xasm/signal_numbers.h>
+#include <xasm/logger_marks.h>
 /* target.h depends on server.h */
 #include "server.h"
 #include "target.h"
@@ -137,10 +138,60 @@ SN_cont(struct user_regs_struct * saved_regs)
 }
 
 static int
+ptrace_single_step(bool_t is_branch,
+		bool_t is_int3, bool_t is_ud, bool_t is_rdtsc,
+		struct user_regs_struct * psaved_regs)
+{
+	assert(psaved_regs != NULL);
+
+	TRACE(XGDBSERVER, "ptrace_singlestep: eip=0x%x,"
+			" branch:%d, int3:%d, ud:%d, rdtsc:%d\n",
+			(unsigned int)psaved_regs->eip,
+			is_branch, is_int3, is_ud, is_rdtsc);
+
+	ptrace_set_regset(SN_info.pid, psaved_regs);
+
+	if ((!is_branch) || is_int3 || is_ud) {
+		/* for int3:
+		 * it is a breakpoint, and isn't inserted by us.
+		 * normally single step
+		 *
+		 * for ud:
+		 * log don't contain its record, normally single step
+		 * */
+		return ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+	}
+
+	if (is_rdtsc) {
+		int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+		int status = my_waitid(TRUE, TRUE);
+
+		if (status != SIGTRAP)
+			THROW_FATAL(EXP_GDBSERVER_ERROR,
+					"status = %d, should be SIGTRAP(%d)", status, SIGTRAP);
+		/* read log:
+		 * 4 bytes for rdtsc mark,
+		 * 4 bytes for EAX,
+		 * 4 bytes for EDX */
+		uint32_t mark = read_u32_from_log();
+		if (mark != RDTSC_MARK)
+			THROW_FATAL(EXP_FILE_CORRUPTED, "inst is rdtsc but mark is 0x%x",
+					mark);
+		uint32_t eax = read_u32_from_log();
+		uint32_t edx = read_u32_from_log();
+
+		/* only reset eax and edx, psaved_regs contain eflags and eip */
+		ptrace_set_eax(SN_info.pid, eax);
+		ptrace_set_edx(SN_info.pid, edx);
+		/* we use NOWAIT in waitid, gdbserver can wait again */
+		return ret;
+	}
+	THROW_FATAL(EXP_UNIMPLEMENTED, "normal case is not implemented");
+}
+
+static int
 SN_single_step(struct user_regs_struct * psaved_regs)
 {
-	TRACE(XGDBSERVER, "ptrace_singlestep\n");
-
 	/* fetch original eip */
 	uintptr_t eip = ptrace_get_eip(SN_info.pid);
 
@@ -153,9 +204,8 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 
 	if (!res) {
 		wait_for_replayer_sync();
-		/* reset regs then continue */
-		ptrace_set_regset(SN_info.pid, psaved_regs);
-		return ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);	
+		return ptrace_single_step(FALSE, FALSE, FALSE, FALSE,
+				psaved_regs);
 	}
 
 	bool_t is_int3 = sock_recv_bool();
@@ -163,39 +213,8 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 	bool_t is_rdtsc = sock_recv_bool();
 	wait_for_replayer_sync();
 
-	if (is_int3 || is_ud) {
-
-		/* for int3:
-		 * it is a breakpoint, and isn't inserted by us.
-		 * normally single step
-		 *
-		 * for ud:
-		 * log don't contain its record, normally single step
-		 * */
-		return ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
-	}
-
-	if (is_rdtsc) {
-		/* use ptrace do single step,
-		 * then use waitid WNOWAIT to wait for the rdtsc instruction end,
-		 * then reset its registers
-		 * then return
-		 * */
-		int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
-		int status = my_waitid(FALSE, TRUE);
-		THROW_FATAL(EXP_UNIMPLEMENTED, "status = %d", status);
-	}
-
-	/* normal case:
-	 * single step
-	 * waitid WNOWAIT
-	 * fetch eip and compare with log (notice: this instruction
-	 * 		may generate fault)
-	 * reset its eip
-	 * return
-	 * */
-
-	THROW_FATAL(EXP_UNIMPLEMENTED, "normal case has not been implemented");
+	return ptrace_single_step(TRUE, is_int3, is_ud,
+			is_rdtsc, psaved_regs);
 }
 
 int

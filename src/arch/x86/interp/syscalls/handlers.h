@@ -9,6 +9,7 @@ def_handler(fstat64)
 def_handler(mmap2)
 def_handler(write)
 def_complex_handler(exit_group)
+def_complex_handler(exit)
 
 // vim:ts=4:sw=4
 

@@ -28,23 +28,24 @@ ptrace_set_regset(pid_t pid, struct user_regs_struct * purs)
 }
 
 uintptr_t
-ptrace_get_eip(pid_t pid)
+ptrace_get_reg(pid_t pid, unsigned int offset)
 {
+
 	errno = 0;
-	uintptr_t eip = ptrace(PTRACE_PEEKUSER, pid,
-			(void*)(offsetof(struct user_regs_struct, eip)),
+	uintptr_t val = ptrace(PTRACE_PEEKUSER, pid,
+			(void*)(offset),
 			NULL);
 	ETHROW_FATAL(EXP_PTRACE, "PTRACE_PEEKUSER failed");
-	return eip;
+	return val;
 }
 
 void
-ptrace_set_eip(pid_t pid, uintptr_t eip)
+ptrace_set_reg(pid_t pid, uintptr_t val, unsigned int offset)
 {
 	errno = 0 ;
 	int err = ptrace(PTRACE_POKEUSER, pid,
-			(void*)(offsetof(struct user_regs_struct, eip)),
-			eip);
+			(void*)(offset),
+			val);
 	ETHROW_FATAL(EXP_PTRACE, "PTRACE_PEEKUSER failes: returns %d", err);
 }
 
