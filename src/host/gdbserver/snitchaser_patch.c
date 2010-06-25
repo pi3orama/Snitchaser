@@ -48,9 +48,35 @@ target_continue(void)
 	ETHROW_FATAL(EXP_GDBSERVER_ERROR, "unable to continue");
 }
 
+static int
+my_waitid(bool_t nowait, bool_t should_trap)
+{
+	int err;
+	siginfo_t si;
+
+	int flag = WEXITED | WSTOPPED;
+	if (nowait)
+		flag |= WNOWAIT;
+	signal(SIGINT, SIG_IGN);
+	errno = 0;
+	err = waitid(P_PID, SN_info.pid, &si, flag);
+	signal(SIGINT, SIG_DFL);
+
+	ETHROW_FATAL(EXP_GDBSERVER_ERROR, "waitid failed with %d", err);
+	if (should_trap)
+		CTHROW_FATAL(si.si_code == CLD_TRAPPED, EXP_GDBSERVER_ERROR,
+				"waitid error: si.si_code=%d, not CLD_TRAPPED", si.si_code);
+	return si.si_status;
+}
+
 static void
 wait_for_replayer_sync(void)
 {
+	int status = my_waitid(FALSE, TRUE);
+
+	CTHROW_FATAL(status == GDBSERVER_NOTIFICATION, EXP_GDBSERVER_ERROR,
+			"waitid error: status=%d", status);
+#if 0
 	int err;
 	siginfo_t si;
 
@@ -65,6 +91,7 @@ wait_for_replayer_sync(void)
 			"waitid error: si.si_code=%d", si.si_code);
 	CTHROW_FATAL(si.si_status == GDBSERVER_NOTIFICATION, EXP_GDBSERVER_ERROR,
 			"waitid error: si.si_status=%d", si.si_status);
+#endif
 }
 
 void
@@ -101,9 +128,8 @@ SN_reset_registers(void)
 	arch_restore_registers(SN_info.pid, &regs, eip);
 }
 
-
 static int
-ptrace_cont(struct user_regs_struct * saved_regs)
+SN_cont(struct user_regs_struct * saved_regs)
 {
 	TRACE(XGDBSERVER, "ptrace_cont\n");
 	THROW_FATAL(EXP_UNIMPLEMENTED, "ptrace_cont is not implemented");
@@ -111,7 +137,7 @@ ptrace_cont(struct user_regs_struct * saved_regs)
 }
 
 static int
-ptrace_single_step(struct user_regs_struct * psaved_regs)
+SN_single_step(struct user_regs_struct * psaved_regs)
 {
 	TRACE(XGDBSERVER, "ptrace_singlestep\n");
 
@@ -123,17 +149,53 @@ ptrace_single_step(struct user_regs_struct * psaved_regs)
 
 	sock_send(&eip, sizeof(eip));
 
-	bool_t res;
-	sock_recv(&res, sizeof(res));
-	wait_for_replayer_sync();
+	bool_t res = sock_recv_bool();
 
 	if (!res) {
+		wait_for_replayer_sync();
 		/* reset regs then continue */
 		ptrace_set_regset(SN_info.pid, psaved_regs);
 		return ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);	
 	}
 
-	THROW_FATAL(EXP_UNIMPLEMENTED, "ptrace_single_step is not implemented");
+	bool_t is_int3 = sock_recv_bool();
+	bool_t is_ud = sock_recv_bool();
+	bool_t is_rdtsc = sock_recv_bool();
+	wait_for_replayer_sync();
+
+	if (is_int3 || is_ud) {
+
+		/* for int3:
+		 * it is a breakpoint, and isn't inserted by us.
+		 * normally single step
+		 *
+		 * for ud:
+		 * log don't contain its record, normally single step
+		 * */
+		return ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+	}
+
+	if (is_rdtsc) {
+		/* use ptrace do single step,
+		 * then use waitid WNOWAIT to wait for the rdtsc instruction end,
+		 * then reset its registers
+		 * then return
+		 * */
+		int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+		int status = my_waitid(FALSE, TRUE);
+		THROW_FATAL(EXP_UNIMPLEMENTED, "status = %d", status);
+	}
+
+	/* normal case:
+	 * single step
+	 * waitid WNOWAIT
+	 * fetch eip and compare with log (notice: this instruction
+	 * 		may generate fault)
+	 * reset its eip
+	 * return
+	 * */
+
+	THROW_FATAL(EXP_UNIMPLEMENTED, "normal case has not been implemented");
 }
 
 int
@@ -148,9 +210,9 @@ SN_ptrace_cont(enum __ptrace_request req, pid_t pid,
 	ptrace_get_regset(SN_info.pid, &saved_urs);
 
 	if (req == PTRACE_SINGLESTEP)
-		return ptrace_single_step(&saved_urs);
+		return SN_single_step(&saved_urs);
 	else
-		return ptrace_cont(&saved_urs);
+		return SN_cont(&saved_urs);
 
 #if 0
 	/* get current eip, put it into OFFSET_TARGET, then redirect

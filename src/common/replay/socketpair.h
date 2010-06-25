@@ -40,6 +40,21 @@ sock_send(void * data, size_t len);
 extern void
 sock_recv(void * data, size_t len);
 
+static inline bool_t
+sock_recv_bool(void)
+{
+	bool_t r;
+	sock_recv(&r, sizeof(r));
+	return r;
+}
+
+static inline void
+sock_send_bool(bool_t b)
+{
+	sock_send(&b, sizeof(b));
+}
+
+
 #endif
 
 // vim:ts=4:sw=4

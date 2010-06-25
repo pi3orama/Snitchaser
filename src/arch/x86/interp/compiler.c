@@ -290,9 +290,9 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 
 		case 0xe9:
 		case 0xeb: {
+			/* 0xeb is short (8bits) jmp, 0xe9 is long (32bits) jmp */
 			template_sym(__direct_jmp_template_start);
 			template_sym(__direct_jmp_template_end);
-			/* 0xeb is short (8bits) jmp, 0xe9 is long (32bits) jmp */
 			*pexit_type = EXIT_UNCOND_DIRECT;
 			int patch_sz = template_sz(__direct_jmp_template) +
 				real_branch_template_sz;
@@ -714,10 +714,37 @@ do_replay_is_branch_inst(void)
 	void * eip;
 	sock_recv(&eip, sizeof(eip));
 
-	bool_t res = FALSE;
-	if (is_branch_inst(eip))
-		res = TRUE;
+	bool_t res = (is_branch_inst(eip)) ? TRUE : FALSE;
 	sock_send(&res, sizeof(res));
+
+	if (res) {
+		/* whether it is int3 ? */
+		uint8_t opcode = ((uint8_t*)(eip))[0];
+		uint8_t opcode2 = ((uint8_t*)(eip))[1];
+		bool_t is_int3 = (opcode == 0xcc) ? TRUE : FALSE;
+
+		bool_t is_ud = FALSE;
+		/* whether it is fix target (UNCOND, DIRECT) branch? */
+		switch (opcode) {
+		case 0xe9:	/* long jmp */
+		case 0xeb:	/* short jmp */
+		case 0xe8:	/* call rel32 */
+			is_ud = TRUE;
+			break;
+		default:
+			is_ud = FALSE;
+			break;
+		}
+
+		/* whether it is rdtsc? */
+		bool_t is_rdtsc =
+			((opcode == 0x0f) && (opcode2 == 0x31)) ? TRUE : FALSE;
+
+
+		sock_send_bool(is_int3);
+		sock_send_bool(is_ud);
+		sock_send_bool(is_rdtsc);
+	}
 
 	notify_gdbserver();
 
