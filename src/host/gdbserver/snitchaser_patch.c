@@ -50,7 +50,7 @@ target_continue(void)
 }
 
 static int
-my_waitid(bool_t nowait, bool_t should_trap)
+my_waitid(bool_t nowait, bool_t should_trap, int signo)
 {
 	int err;
 	siginfo_t si;
@@ -64,19 +64,24 @@ my_waitid(bool_t nowait, bool_t should_trap)
 	signal(SIGINT, SIG_DFL);
 
 	ETHROW_FATAL(EXP_GDBSERVER_ERROR, "waitid failed with %d", err);
+
+	SILENT(XGDBSERVER, "my_waitid: si.si_code=%d, si.si_status=0x%d\n",
+			si.si_code, si.si_status);
+
 	if (should_trap)
 		CTHROW_FATAL(si.si_code == CLD_TRAPPED, EXP_GDBSERVER_ERROR,
 				"waitid error: si.si_code=%d, not CLD_TRAPPED", si.si_code);
+	if (signo != 0)
+		CTHROW_FATAL(si.si_status == signo, EXP_GDBSERVER_ERROR,
+				"waitid error: si.si_status=%d, not %d",
+				si.si_status, signo);
 	return si.si_status;
 }
 
 static void
 wait_for_replayer_sync(void)
 {
-	int status = my_waitid(FALSE, TRUE);
-
-	CTHROW_FATAL(status == GDBSERVER_NOTIFICATION, EXP_GDBSERVER_ERROR,
-			"waitid error: status=%d", status);
+	my_waitid(FALSE, TRUE, GDBSERVER_NOTIFICATION);
 #if 0
 	int err;
 	siginfo_t si;
@@ -93,6 +98,19 @@ wait_for_replayer_sync(void)
 	CTHROW_FATAL(si.si_status == GDBSERVER_NOTIFICATION, EXP_GDBSERVER_ERROR,
 			"waitid error: si.si_status=%d", si.si_status);
 #endif
+}
+
+static void
+adjust_wait_result(void)
+{
+	uintptr_t ori_eip = ptrace_get_eip(SN_info.pid);
+	ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.replay_nop);
+	int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+	CTHROW_FATAL(ret == 0, EXP_GDBSERVER_ERROR,
+			"PTRACE_SINGLESTEP failed, err=%d", ret);
+	
+	my_waitid(TRUE, TRUE, SIGTRAP);
+	ptrace_set_eip(SN_info.pid, ori_eip);
 }
 
 void
@@ -140,9 +158,13 @@ SN_cont(struct user_regs_struct * saved_regs)
 static int
 ptrace_single_step(bool_t is_branch,
 		bool_t is_int3, bool_t is_ud, bool_t is_rdtsc,
+		uintptr_t pnext_inst,
 		struct user_regs_struct * psaved_regs)
 {
 	assert(psaved_regs != NULL);
+
+	/* FIXME!!!
+	 * how about race condition related sigsegv? */
 
 	TRACE(XGDBSERVER, "ptrace_singlestep: eip=0x%x,"
 			" branch:%d, int3:%d, ud:%d, rdtsc:%d\n",
@@ -159,16 +181,26 @@ ptrace_single_step(bool_t is_branch,
 		 * for ud:
 		 * log don't contain its record, normally single step
 		 * */
-		return ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+		int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+		/* my_waitid, check whether SIGTRAP? */
+		int status = my_waitid(TRUE, TRUE, 0);
+		if (status != SIGTRAP) {
+			WARNING(XGDBSERVER, "NEVER TESTED!!!\n");
+			WARNING(XGDBSERVER, "normal code generate unlogged signal %d\n",
+					status);
+			WARNING(XGDBSERVER, "reset eip to 0x%x\n", pnext_inst);
+			ptrace_set_eip(SN_info.pid, pnext_inst);
+
+			adjust_wait_result();
+			return 0;
+		}
+		return ret;
 	}
 
 	if (is_rdtsc) {
 		int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
-		int status = my_waitid(TRUE, TRUE);
+		my_waitid(TRUE, TRUE, SIGTRAP);
 
-		if (status != SIGTRAP)
-			THROW_FATAL(EXP_GDBSERVER_ERROR,
-					"status = %d, should be SIGTRAP(%d)", status, SIGTRAP);
 		/* read log:
 		 * 4 bytes for rdtsc mark,
 		 * 4 bytes for EAX,
@@ -186,6 +218,10 @@ ptrace_single_step(bool_t is_branch,
 		/* we use NOWAIT in waitid, gdbserver can wait again */
 		return ret;
 	}
+
+	/* normal case: read from log */
+	/* single step */
+
 	THROW_FATAL(EXP_UNIMPLEMENTED, "normal case is not implemented");
 }
 
@@ -201,20 +237,30 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 	sock_send(&eip, sizeof(eip));
 
 	bool_t res = sock_recv_bool();
+	uintptr_t pnext_inst = sock_recv_ptr();
 
 	if (!res) {
+		assert(pnext_inst != 0);
 		wait_for_replayer_sync();
-		return ptrace_single_step(FALSE, FALSE, FALSE, FALSE,
+		return ptrace_single_step(FALSE, FALSE, FALSE, FALSE, pnext_inst,
 				psaved_regs);
 	}
 
+	/* see compiler.c */
 	bool_t is_int3 = sock_recv_bool();
 	bool_t is_ud = sock_recv_bool();
 	bool_t is_rdtsc = sock_recv_bool();
+
+	bool_t is_int80 = sock_recv_bool();
+	bool_t is_vdso_syscall = sock_recv_bool();
+
 	wait_for_replayer_sync();
 
+	if (is_int80 || is_vdso_syscall)
+		THROW_FATAL(EXP_UNIMPLEMENTED, "unable to process syscall");
+
 	return ptrace_single_step(TRUE, is_int3, is_ud,
-			is_rdtsc, psaved_regs);
+			is_rdtsc, pnext_inst, psaved_regs);
 }
 
 int

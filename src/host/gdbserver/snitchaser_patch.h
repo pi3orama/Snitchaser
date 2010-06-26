@@ -26,6 +26,7 @@ struct SN_info {
 	void * patch_block_func;
 	void * unpatch_block_func;
 	void * is_branch_inst;
+	void * replay_nop;
 };
 
 extern struct SN_info SN_info;

@@ -83,6 +83,12 @@ replay_is_branch_inst:
 	/* never comes here */
 	int3
 
+/* replay_nop is all nop, gdbserver redirect code here to
+ * cleanup waitid's status */
+.globl replay_nop
+replay_nop:
+	nop
+	nop
 /* don't generate executable stack */
 .section        .note.GNU-stack,"",@progbits
 

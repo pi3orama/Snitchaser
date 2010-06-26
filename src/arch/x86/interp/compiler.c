@@ -321,10 +321,10 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 			int patch_sz = template_sz(__direct_call_template) +
 				real_branch_template_sz;
 			void * target = branch + 5 + *((int32_t*)(branch + 1));
-			void * next_inst = branch + 5;
+			void * pnext_inst = branch + 5;
 			memcpy(patch_code, __direct_call_template_start,
 					template_sz(__direct_call_template));
-			reset_push_imm(patch_code, (uint32_t)(next_inst));
+			reset_push_imm(patch_code, (uint32_t)(pnext_inst));
 			reset_movl_imm(inst_in_template(patch_code, __direct_call_template, movl),
 					            (uint32_t)target);
 			/* no log phase */
@@ -712,10 +712,13 @@ do_replay_is_branch_inst(void)
 {
 	TRACE(COMPILER, "in do_replay_is_branch_inst\n");
 	void * eip;
+	void * pnext_inst;
 	sock_recv(&eip, sizeof(eip));
 
-	bool_t res = (is_branch_inst(eip)) ? TRUE : FALSE;
+	pnext_inst = get_next_inst(eip);
+	bool_t res = (pnext_inst == NULL) ? TRUE : FALSE;
 	sock_send(&res, sizeof(res));
+	sock_send_ptr((uintptr_t)pnext_inst);
 
 	if (res) {
 		/* whether it is int3 ? */
@@ -740,10 +743,24 @@ do_replay_is_branch_inst(void)
 		bool_t is_rdtsc =
 			((opcode == 0x0f) && (opcode2 == 0x31)) ? TRUE : FALSE;
 
+		bool_t is_int80 =
+			((opcode == 0xcd) && (opcode2 == 0x80)) ? TRUE : FALSE;
+
+		bool_t is_vdso_syscall = FALSE;
+
+		template_sym(__vdso_syscall_inst_start);
+		template_sym(__vdso_syscall_inst_end);
+
+		if ((opcode == 0x65) && (memcmp(eip, __vdso_syscall_inst_start,
+					template_sz(__vdso_syscall_inst))))
+			is_vdso_syscall = TRUE;
 
 		sock_send_bool(is_int3);
 		sock_send_bool(is_ud);
 		sock_send_bool(is_rdtsc);
+		sock_send_bool(is_int80);
+		sock_send_bool(is_vdso_syscall);
+
 	}
 
 	notify_gdbserver();

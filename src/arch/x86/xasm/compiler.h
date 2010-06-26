@@ -12,8 +12,8 @@
 extern ATTR_HIDDEN void *
 scan_insts(void * stream);
 
-extern ATTR_HIDDEN bool_t
-is_branch_inst(void * ptr);
+extern ATTR_HIDDEN void *
+get_next_inst(void * ptr);
 
 extern ATTR_HIDDEN void
 real_branch(void);
@@ -28,6 +28,9 @@ replay_unpatch_block(void);
  * before call it */
 extern void
 replay_is_branch_inst(void);
+
+extern void
+replay_nop(void);
 
 #endif
 
