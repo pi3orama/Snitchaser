@@ -163,15 +163,34 @@ ptrace_single_step(bool_t is_branch,
 {
 	assert(psaved_regs != NULL);
 
-	/* FIXME!!!
-	 * how about race condition related sigsegv? */
-
 	TRACE(XGDBSERVER, "ptrace_singlestep: eip=0x%x,"
 			" branch:%d, int3:%d, ud:%d, rdtsc:%d\n",
 			(unsigned int)psaved_regs->eip,
 			is_branch, is_int3, is_ud, is_rdtsc);
 
 	ptrace_set_regset(SN_info.pid, psaved_regs);
+
+	if (is_rdtsc) {
+		int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+		my_waitid(TRUE, TRUE, SIGTRAP);
+
+		/* read log:
+		 * 4 bytes for rdtsc mark,
+		 * 4 bytes for EAX,
+		 * 4 bytes for EDX */
+		uint32_t mark = read_u32_from_log();
+		if (mark != RDTSC_MARK)
+			THROW_FATAL(EXP_FILE_CORRUPTED, "inst is rdtsc but mark is 0x%x",
+					mark);
+		uint32_t eax = read_u32_from_log();
+		uint32_t edx = read_u32_from_log();
+
+		/* only reset eax and edx, psaved_regs contain eflags and eip */
+		ptrace_set_eax(SN_info.pid, eax);
+		ptrace_set_edx(SN_info.pid, edx);
+		/* we use NOWAIT in waitid, gdbserver can wait again */
+		return ret;
+	}
 
 	if ((!is_branch) || is_int3 || is_ud) {
 		/* for int3:
@@ -197,30 +216,13 @@ ptrace_single_step(bool_t is_branch,
 		return ret;
 	}
 
-	if (is_rdtsc) {
-		int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
-		my_waitid(TRUE, TRUE, SIGTRAP);
+	int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+	int status = my_waitid(TRUE, TRUE, 0);
 
-		/* read log:
-		 * 4 bytes for rdtsc mark,
-		 * 4 bytes for EAX,
-		 * 4 bytes for EDX */
-		uint32_t mark = read_u32_from_log();
-		if (mark != RDTSC_MARK)
-			THROW_FATAL(EXP_FILE_CORRUPTED, "inst is rdtsc but mark is 0x%x",
-					mark);
-		uint32_t eax = read_u32_from_log();
-		uint32_t edx = read_u32_from_log();
-
-		/* only reset eax and edx, psaved_regs contain eflags and eip */
-		ptrace_set_eax(SN_info.pid, eax);
-		ptrace_set_edx(SN_info.pid, edx);
-		/* we use NOWAIT in waitid, gdbserver can wait again */
-		return ret;
+	if (status != SIGTRAP) {
+#error ...
 	}
-
-	/* normal case: read from log */
-	/* single step */
+	return ret;
 
 	THROW_FATAL(EXP_UNIMPLEMENTED, "normal case is not implemented");
 }
