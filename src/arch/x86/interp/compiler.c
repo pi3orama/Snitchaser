@@ -210,7 +210,8 @@ compile_modrm_target(uint8_t * patch_code, uint8_t * pmodrm,
 		pos += template_sz(__set_target_restore_eax);
 	}
 	/* copy 'log phase' */
-	*log_phase_retaddr_fix = copy_log_phase(pos);
+	if (log_phase_retaddr_fix != NULL)
+		*log_phase_retaddr_fix = copy_log_phase(pos);
 	pos += template_sz(__log_phase_template);
 	return pos;
 }
@@ -595,7 +596,8 @@ compile_code_block(void * target, struct obj_page_head ** phead)
 	} else {
 		block->recompile_start = NULL;
 	}
-	TRACE(COMPILER, "new block %p for %p compiled, __code=%p, ori_code_end=%p\n",
+	TRACE(COMPILER,
+			"new block %p for %p compiled, __code=%p, ori_code_end=%p\n",
 			block, block->entry, block->__code, block->ori_code_end);
 	return block;
 }
@@ -752,14 +754,33 @@ do_replay_is_branch_inst(void)
 		template_sym(__vdso_syscall_inst_end);
 
 		if ((opcode == 0x65) && (memcmp(eip, __vdso_syscall_inst_start,
-					template_sz(__vdso_syscall_inst))))
+					template_sz(__vdso_syscall_inst))) == 0)
 			is_vdso_syscall = TRUE;
+
+		bool_t is_call = FALSE;
+		int call_sz = 0;
+		if (opcode == 0xe8) {
+			is_call = TRUE;
+			call_sz = 5;
+		} else if ((opcode == 0xff) && (MODRM_REG(opcode2) == 2)) {
+			is_call = TRUE;
+			uint8_t patch_code[32];
+			compile_modrm_target(patch_code, eip + 1, NULL, &call_sz);
+		}
+
+		bool_t is_ret = FALSE;
+		if ((opcode == 0xc3) || (opcode == 0xc2))
+			is_ret = TRUE;
 
 		sock_send_bool(is_int3);
 		sock_send_bool(is_ud);
 		sock_send_bool(is_rdtsc);
 		sock_send_bool(is_int80);
 		sock_send_bool(is_vdso_syscall);
+		sock_send_bool(is_call);
+		if (is_call)
+			sock_send_u32((uint32_t)call_sz);
+		sock_send_bool(is_ret);
 
 	}
 

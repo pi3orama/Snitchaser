@@ -29,9 +29,9 @@ struct SN_info SN_info;
 static struct pusha_regs * pusha_regs_addr;
 
 static void
-target_read_memory(void * memaddr, void * myaddr, size_t len)
+target_read_memory(uintptr_t memaddr, void * myaddr, size_t len)
 {
-	TRACE(XGDBSERVER, "read memory: %p %d\n", memaddr, len);
+	DEBUG(XGDBSERVER, "read memory: 0x%x %d\n", memaddr, len);
 	assert(the_target->read_memory);
 	assert(myaddr != NULL);
 	int err = read_inferior_memory((CORE_ADDR)(uintptr_t)memaddr, myaddr, len);
@@ -39,6 +39,19 @@ target_read_memory(void * memaddr, void * myaddr, size_t len)
 		THROW_FATAL(EXP_GDBSERVER_ERROR,
 				"read inferior memory error: %d", err);
 }
+
+static void
+target_write_memory(uintptr_t memaddr, void * myaddr, size_t len)
+{
+	DEBUG(XGDBSERVER, "write memory: 0x%x %d\n", memaddr, len);
+	assert(the_target->write_memory);
+	assert(myaddr != NULL);
+	int err = write_inferior_memory((CORE_ADDR)(uintptr_t)memaddr, myaddr, len);
+	if (err != 0)
+		THROW_FATAL(EXP_GDBSERVER_ERROR,
+				"write inferior memory error: %d", err);
+}
+
 
 static void
 target_continue(void)
@@ -126,22 +139,22 @@ SN_reset_registers(void)
 	struct pusha_regs regs;
 
 	/* the esp in regs is adjusted by replayer */
-	target_read_memory((void*)pusha_regs_addr, &regs, sizeof(regs));
+	target_read_memory((uintptr_t)pusha_regs_addr, &regs, sizeof(regs));
 
-	TRACE(XGDBSERVER, "got registers:\n");
-	TRACE(XGDBSERVER, "\teax=0x%x\n", regs.eax);
-	TRACE(XGDBSERVER, "\tebx=0x%x\n", regs.ebx);
-	TRACE(XGDBSERVER, "\tecx=0x%x\n", regs.ecx);
-	TRACE(XGDBSERVER, "\tedx=0x%x\n", regs.edx);
-	TRACE(XGDBSERVER, "\tesi=0x%x\n", regs.esi);
-	TRACE(XGDBSERVER, "\tedi=0x%x\n", regs.edi);
-	TRACE(XGDBSERVER, "\tesp=0x%x\n", regs.esp);
-	TRACE(XGDBSERVER, "\tebp=0x%x\n", regs.ebp);
+	DEBUG(XGDBSERVER, "got registers:\n");
+	DEBUG(XGDBSERVER, "\teax=0x%x\n", regs.eax);
+	DEBUG(XGDBSERVER, "\tebx=0x%x\n", regs.ebx);
+	DEBUG(XGDBSERVER, "\tecx=0x%x\n", regs.ecx);
+	DEBUG(XGDBSERVER, "\tedx=0x%x\n", regs.edx);
+	DEBUG(XGDBSERVER, "\tesi=0x%x\n", regs.esi);
+	DEBUG(XGDBSERVER, "\tedi=0x%x\n", regs.edi);
+	DEBUG(XGDBSERVER, "\tesp=0x%x\n", regs.esp);
+	DEBUG(XGDBSERVER, "\tebp=0x%x\n", regs.ebp);
 
 	void * eip;
-	target_read_memory(SN_info.stack_base + OFFSET_TARGET,
+	target_read_memory((uintptr_t)(SN_info.stack_base + OFFSET_TARGET),
 			&eip, sizeof(eip));
-	TRACE(XGDBSERVER, "\teip=%p\n", eip);
+	DEBUG(XGDBSERVER, "\teip=%p\n", eip);
 
 	/* restore registers */
 	arch_restore_registers(SN_info.pid, &regs, eip);
@@ -158,6 +171,7 @@ SN_cont(struct user_regs_struct * saved_regs)
 static int
 ptrace_single_step(bool_t is_branch,
 		bool_t is_int3, bool_t is_ud, bool_t is_rdtsc,
+		bool_t is_call, size_t call_sz, bool_t is_ret,
 		uintptr_t pnext_inst,
 		struct user_regs_struct * psaved_regs)
 {
@@ -204,7 +218,7 @@ ptrace_single_step(bool_t is_branch,
 		/* my_waitid, check whether SIGTRAP? */
 		int status = my_waitid(TRUE, TRUE, 0);
 		if (status != SIGTRAP) {
-			WARNING(XGDBSERVER, "NEVER TESTED!!!\n");
+			WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
 			WARNING(XGDBSERVER, "normal code generate unlogged signal %d\n",
 					status);
 			WARNING(XGDBSERVER, "reset eip to 0x%x\n", pnext_inst);
@@ -220,11 +234,39 @@ ptrace_single_step(bool_t is_branch,
 	int status = my_waitid(TRUE, TRUE, 0);
 
 	if (status != SIGTRAP) {
-#error ...
+		WARNING(XGDBSERVER, "recevie signal %d at 0x%x\n", status,
+				(uintptr_t)psaved_regs->eip);
+		WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
+
+		/* for call and ret, we should adjust esp */
+		if (is_call) {
+			ptrace_set_esp(SN_info.pid, psaved_regs->esp - 4);
+			/* push return addr */
+			uintptr_t ret_addr = psaved_regs->eip + call_sz;
+			target_write_memory(psaved_regs->esp - 4, &ret_addr,
+					sizeof(ret_addr));
+		}
+		if (is_ret)
+			ptrace_set_esp(SN_info.pid, psaved_regs->esp + 4);
+
+		ret = 0;
+		adjust_wait_result();
+	}
+
+	uintptr_t eip = ptrace_get_eip(SN_info.pid);
+	/* read from log */
+	uintptr_t real_eip = read_ptr_from_log();
+
+	DEBUG(XGDBSERVER, "branch to 0x%x, should be 0x%x\n",
+			eip, real_eip);
+
+	if (eip != real_eip) {
+		WARNING(XGDBSERVER, "branch inconsistent at 0x%x: "
+				"should be 0x%x, not %x\n",
+				(uintptr_t)psaved_regs->eip, real_eip, eip);
+		ptrace_set_eip(SN_info.pid, real_eip);
 	}
 	return ret;
-
-	THROW_FATAL(EXP_UNIMPLEMENTED, "normal case is not implemented");
 }
 
 static int
@@ -244,7 +286,9 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 	if (!res) {
 		assert(pnext_inst != 0);
 		wait_for_replayer_sync();
-		return ptrace_single_step(FALSE, FALSE, FALSE, FALSE, pnext_inst,
+		return ptrace_single_step(FALSE, FALSE,
+				FALSE, FALSE, FALSE, 0, FALSE,
+				pnext_inst,
 				psaved_regs);
 	}
 
@@ -255,6 +299,11 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 
 	bool_t is_int80 = sock_recv_bool();
 	bool_t is_vdso_syscall = sock_recv_bool();
+	bool_t is_call = sock_recv_bool();
+	size_t call_sz = 0;
+	if (is_call)
+		call_sz = (size_t)(sock_recv_u32());
+	bool_t is_ret = sock_recv_bool();
 
 	wait_for_replayer_sync();
 
@@ -262,7 +311,8 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 		THROW_FATAL(EXP_UNIMPLEMENTED, "unable to process syscall");
 
 	return ptrace_single_step(TRUE, is_int3, is_ud,
-			is_rdtsc, pnext_inst, psaved_regs);
+			is_rdtsc, is_call, call_sz,
+			is_ret, pnext_inst, psaved_regs);
 }
 
 int
