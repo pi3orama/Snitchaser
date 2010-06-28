@@ -37,6 +37,7 @@ uncompress_log(const char * log_fn, const char * out_fn);
 	}
 
 def_read_TYPE_from_log(uintptr_t, ptr)
+def_read_TYPE_from_log(int, int)
 def_read_TYPE_from_log(uint32_t, u32)
 def_read_TYPE_from_log(uint16_t, u16)
 def_read_TYPE_from_log(uint8_t, u8)

@@ -19,7 +19,7 @@
 #include <signal.h>
 
 #include <xasm/signal_numbers.h>
-#include <xasm/logger_marks.h>
+#include <xasm/marks.h>
 /* target.h depends on server.h */
 #include "server.h"
 #include "target.h"

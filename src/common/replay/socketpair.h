@@ -6,6 +6,8 @@
 #ifndef SN_SOCKPAIR_H
 #define SN_SOCKPAIR_H
 
+#include <common/defs.h>
+
 /* this file is introduced to define socket pair which is used
  * in communication between gdbserver and target process. We will
  * explain sockpair in detail below.
@@ -53,6 +55,7 @@ sock_recv(void * data, size_t len);
 	}
 
 def_sock_sr_TYPE(bool_t, bool)
+def_sock_sr_TYPE(int, int)
 def_sock_sr_TYPE(uintptr_t, ptr)
 def_sock_sr_TYPE(uint32_t, u32)
 def_sock_sr_TYPE(uint16_t, u16)

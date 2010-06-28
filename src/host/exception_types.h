@@ -27,6 +27,8 @@ def_exp_type(EXP_GDBSERVER_ERROR, "gdbserver encounters an error")
 def_exp_type(EXP_LOG_CORRUPTED, "log corrupted")
 def_exp_type(EXP_LOG_END, "log end")
 
+def_exp_type(EXP_SYSCALL_REPLAYER, "exception in replay system call")
+
 def_exp_type(EXP_UNIMPLEMENTED, "unimplented feature")
 // vim:ts=4:sw=4:cino=l1,\:0
 

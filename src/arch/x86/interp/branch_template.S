@@ -4,7 +4,7 @@
  */
 
 #include <asm_offsets.h>
-#include <xasm/logger_marks.h>
+#include <xasm/marks.h>
 
 
 /* 

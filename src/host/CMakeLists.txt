@@ -13,6 +13,8 @@ SET(SN_SRC
 	procmaps.h
 	mm.h
 	elf.h
+	syscall_replayer.h
+	syscall_replayer.c
 	)
 
 SET(UC_SRC
