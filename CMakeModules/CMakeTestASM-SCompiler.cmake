@@ -18,6 +18,6 @@
 # is set and cmake stops processing commands and will not generate
 # any makefiles or projects.
 
-SET(ASM_DIALECT "-C")
+SET(ASM_DIALECT "-S")
 INCLUDE(CMakeTestASMCompiler)
 SET(ASM_DIALECT)

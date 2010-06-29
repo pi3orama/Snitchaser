@@ -68,6 +68,22 @@ flush_logger(void);
 extern void
 append_buffer(void * data, size_t size);
 
+#define def_append_buffer_TYPE(t, tn)	\
+	inline static void					\
+	append_buffer_##tn(t x)				\
+	{									\
+		append_buffer(&x, sizeof(x));	\
+	}
+
+def_append_buffer_TYPE(void *, ptr)
+def_append_buffer_TYPE(uint32_t, u32)
+def_append_buffer_TYPE(uint16_t, u16)
+def_append_buffer_TYPE(uint8_t, u8)
+def_append_buffer_TYPE(int, int)
+
+#undef def_append_buffer_TYPE
+
+
 /* ********* replay code *********** */
 extern void
 load_from_buffer(void * data, size_t size);

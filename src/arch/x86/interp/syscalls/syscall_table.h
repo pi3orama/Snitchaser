@@ -14,6 +14,8 @@ struct syscall_table_entry {
 	int (*replay_handler)(struct pusha_regs * regs);
 };
 
+#define SYSCALL_TABLE_SZ	(512)
+
 extern struct syscall_table_entry syscall_table[];
 
 #endif

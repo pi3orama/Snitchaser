@@ -44,7 +44,7 @@ trival_replay_handler(struct pusha_regs * regs)
 	return 0;
 }
 
-struct syscall_table_entry syscall_table[512] = {
+struct syscall_table_entry syscall_table[SYSCALL_TABLE_SZ] = {
 #include "handlers.h"
 };
 
