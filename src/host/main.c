@@ -484,6 +484,8 @@ start_gdbserver(struct opts * opts, pid_t child_pid)
 
 	sock_recv(&SN_info, sizeof(SN_info));
 
+	/* type of SN_info is struct SN_info, which is defined in
+	 * host/gdbserver/snitchaser_patch.h */
 	VERBOSE(REPLAYER_HOST, "ori_pid: %d\n", SN_info.ori_pid);
 	VERBOSE(REPLAYER_HOST, "ori_tid: %d\n", SN_info.ori_tid);
 	VERBOSE(REPLAYER_HOST, "ori_tnr: %d\n", SN_info.ori_tnr);
@@ -492,6 +494,8 @@ start_gdbserver(struct opts * opts, pid_t child_pid)
 	VERBOSE(REPLAYER_HOST, "patch_block: %p\n", SN_info.patch_block_func);
 	VERBOSE(REPLAYER_HOST, "unpatch_block: %p\n", SN_info.unpatch_block_func);
 	VERBOSE(REPLAYER_HOST, "is_branch_inst: %p\n", SN_info.is_branch_inst);
+	VERBOSE(REPLAYER_HOST, "replay_nop: %p\n", SN_info.replay_nop);
+	VERBOSE(REPLAYER_HOST, "syscall_helper: %p\n", SN_info.syscall_helper);
 
 
 	/* the child should have stopped. do gdbserver attachment */

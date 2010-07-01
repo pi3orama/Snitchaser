@@ -15,7 +15,6 @@
 #include <unistd.h>	/* pid_t */
 #include <sys/ptrace.h>
 
-
 struct SN_info {
 	pid_t ori_pid;
 	pid_t ori_tid;
@@ -27,6 +26,7 @@ struct SN_info {
 	void * unpatch_block_func;
 	void * is_branch_inst;
 	void * replay_nop;
+	void * syscall_helper;
 };
 
 extern struct SN_info SN_info;

@@ -9,6 +9,7 @@
 #include <host/gdbserver/snitchaser_patch.h>
 #include <host/arch_replayer_helper.h>
 #include <host/replay_log.h>
+#include <host/syscall_replayer.h>
 #include <common/replay/socketpair.h>
 
 #include <asm_offsets.h>
@@ -161,7 +162,7 @@ SN_reset_registers(void)
 }
 
 static int
-SN_cont(struct user_regs_struct * saved_regs)
+SN_cont(struct user_regs_struct * psaved_regs)
 {
 	TRACE(XGDBSERVER, "ptrace_cont\n");
 	THROW_FATAL(EXP_UNIMPLEMENTED, "ptrace_cont is not implemented");
@@ -269,6 +270,49 @@ ptrace_single_step(bool_t is_branch,
 	return ret;
 }
 
+/* 
+ * return value: if signal arise, return signal number
+ * in normal case, return 0
+ */
+static int
+single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
+{
+	uint32_t mark = read_u32_from_log();
+	if (mark != SYSCALL_MARK)
+		THROW_FATAL(EXP_FILE_CORRUPTED, "mark should be 0x%x but actually 0x%x",
+				SYSCALL_MARK, mark);
+	struct pusha_regs ori_regs;
+	read_log_full(&ori_regs, sizeof(ori_regs));
+
+
+	TRACE(XGDBSERVER, "single step syscall, next inst is 0x%x\n", new_eip);
+
+	/* then check for no-signal-mark */
+	mark = read_u32_from_log();
+	if (mark != NO_SIGNAL_MARK)
+		THROW_FATAL(EXP_UNIMPLEMENTED, "syscall is broken by signal, "
+				"unimplemented");
+	TRACE(XGDBSERVER, "NO_SIGNAL_MARK ok\n");
+
+	/* redirect eip */
+	ptrace_set_eip(SN_info.pid, (uintptr_t)(SN_info.syscall_helper));
+	target_continue();
+
+	/* see do_replay_syscall_helper in
+	 * arch/x86/interp/syscalls/replay_syscalls.c */
+	sock_send(&ori_regs, sizeof(ori_regs));
+
+	/* begin syscall cycle */
+	syscall_read_cycle();
+
+	wait_for_replayer_sync();
+
+	ptrace_set_eip(SN_info.pid, (uintptr_t)new_eip);
+	adjust_wait_result();
+
+	return 0;
+}
+
 static int
 SN_single_step(struct user_regs_struct * psaved_regs)
 {
@@ -307,8 +351,21 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 
 	wait_for_replayer_sync();
 
-	if (is_int80 || is_vdso_syscall)
-		THROW_FATAL(EXP_UNIMPLEMENTED, "unable to process syscall");
+	if (is_int80 || is_vdso_syscall) {
+		WARNING(REPLAYER_HOST, "testing process syscall\n");
+		uintptr_t new_eip;
+		/* 2 and 7 are the size of the syscall instruction */
+		if (is_int80) {
+			new_eip = eip + 2;
+		} else {
+			new_eip = eip + 7;
+		}
+		int signum = single_step_syscall(new_eip, psaved_regs);
+		if (signum != 0)
+			THROW_FATAL(EXP_UNIMPLEMENTED, "syscall is broken by signal, "
+					"doesn't support");
+		return 0;
+	}
 
 	return ptrace_single_step(TRUE, is_int3, is_ud,
 			is_rdtsc, is_call, call_sz,

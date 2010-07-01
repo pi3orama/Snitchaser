@@ -20,6 +20,9 @@
 void
 do_replay_syscall_helper(struct pusha_regs * regs)
 {
+
+	TRACE(REPLAYER_TARGET, "in do_replay_syscall_helper\n");
+
 	/* check regs */
 	struct pusha_regs ori_regs;
 	sock_recv(&ori_regs, sizeof(ori_regs));
@@ -32,6 +35,7 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 
 	int nr = regs->eax;
 	assert((nr >= 0) && (nr < SYSCALL_TABLE_SZ));
+	TRACE(REPLAYER_TARGET, "replay syscall %d\n", nr);
 
 	if (syscall_table[nr].replay_handler) {
 
@@ -40,7 +44,8 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 		syscall_table[nr].replay_handler(regs);
 		finish_syscall_read();
 
-		loop_sleep();
+		/* in interp/replayer.c */
+		notify_gdbserver();
 
 	} else {
 		FATAL(REPLAYER_TARGET, "doesn't support syscall %d\n", nr);

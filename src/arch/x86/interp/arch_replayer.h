@@ -17,6 +17,8 @@ replay_is_branch_inst(void);
 extern void
 replay_nop(void);
 
+extern void
+replay_syscall_helper(void);
 
 /* ********* implemented in compiler.c ************ */
 extern void
@@ -26,6 +28,7 @@ do_replay_unpatch_block(void);
 extern void
 do_replay_is_branch_inst(void);
 /* ********** implemented in syscalls/replay_syscalls.c */
+struct pusha_regs;
 extern void
 do_replay_syscall_helper(struct pusha_regs * regs);
 
