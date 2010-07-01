@@ -15,6 +15,8 @@
 #include <xasm/tls.h>
 #include <xasm/compiler.h>
 
+#include <interp/arch_replayer.h>
+
 #include <interp/checkpoint.h>
 #include <interp/replayer.h>
 /* for struct SN_info */
@@ -380,18 +382,7 @@ wait_for_attach(void)
 	/* don't use sigstop, use loop can simplify gdb */
 	INTERNAL_SYSCALL_int80(kill, 2, self_pid, SIGSTOP);
 #endif
-
-	while(1) {
-		struct timespec {
-			long       ts_sec;
-			long       ts_nsec;
-		};
-		struct timespec tm = {1, 0};
-		INTERNAL_SYSCALL_int80(nanosleep, 2, &tm, NULL);
-	}
-
-	FATAL(REPLAYER_TARGET, "we shouldn't get here! we need gdb attach!!\n");
-
+	loop_sleep();
 }
 
 void
@@ -469,6 +460,22 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 	/* registers have been set */
 	wait_for_attach();
 }
+
+void
+loop_sleep(void)
+{
+	for(;;) {
+		struct timespec {
+			long       ts_sec;
+			long       ts_nsec;
+		};
+		struct timespec tm = {1, 0};
+		INTERNAL_SYSCALL_int80(nanosleep, 2, &tm, NULL);
+	}
+
+	FATAL(REPLAYER_TARGET, "we shouldn't get here! we need gdb attach!!\n");
+}
+
 
 // vim:ts=4:sw=4
 

@@ -21,6 +21,10 @@ SET(SRC
 	x86_opcode.h
 	x86_opcode.c.h
 	asm_offsets.h
+
+	arch_replayer.S
+	arch_replayer.c
+	arch_replayer.h
 	)
 
 SET_SOURCE_FILES_PROPERTIES(kutils.c

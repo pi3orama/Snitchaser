@@ -11,6 +11,9 @@
 void
 notify_gdbserver(void);
 
+void
+loop_sleep(void);
+
 #endif
 
 // vim:ts=4:sw=4

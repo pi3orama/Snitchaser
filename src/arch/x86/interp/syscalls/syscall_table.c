@@ -5,12 +5,14 @@
 
 #include <common/defs.h>
 #include <interp/logger.h>
+#include <interp/replayer.h>
 #include <xasm/unistd_32.h>
 
+/* don't include syscall_handler.h! it is special! */
+#include <interp/syscall_replayer.h>
 
 #include "protos.h"
 #include "syscall_table.h"
-
 
 /* trival pre handler: do nothing */
 /* trival post handler: save eax only */
@@ -40,7 +42,7 @@ trival_post_handler(struct pusha_regs * regs)
 int
 trival_replay_handler(struct pusha_regs * regs)
 {
-	load_from_buffer(&regs->eax, sizeof(regs->eax));
+	read_syscall_data(&regs->eax, sizeof(regs->eax));
 	return 0;
 }
 

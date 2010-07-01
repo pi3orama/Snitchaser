@@ -297,12 +297,5 @@ append_buffer(void * data, size_t size)
 	return;
 }
 
-/* ********** replay code ********** */
-void
-load_from_buffer(void * data ATTR_UNUSED, size_t size ATTR_UNUSED)
-{
-#warning not implemented!!!
-}
-
 // vim:ts=4:sw=4
 

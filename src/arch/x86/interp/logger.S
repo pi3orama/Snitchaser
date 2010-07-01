@@ -86,22 +86,6 @@ vdso_syscall_entry:
 	jmpl *%fs:OFFSET_REAL_BRANCH
 	nop
 
-.globl replay_syscall_helper
-replay_syscall_helper:
-	movl %esp, %fs:OFFSET_OLD_STACK_TOP
-	movl %fs:OFFSET_STACK_TOP, %esp
-	pusha
-	pushf
-	pushl $0x0202
-	popfl
-	/* esp is the first argument of do_replay_syscall_helper */
-	pushl %esp
-	/* defined in log_syscalls.c */
-	call do_replay_syscall_helper
-	/* never gets here */
-	int3
-
-
 /* don't generate executable stack */
 .section        .note.GNU-stack,"",@progbits
 

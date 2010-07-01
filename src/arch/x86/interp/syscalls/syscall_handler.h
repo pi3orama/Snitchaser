@@ -18,16 +18,26 @@
  * include as less files as possible, because we need  kernel structures
  */
 
-extern void
-append_buffer(void * data, size_t size);
-
-extern void
-load_from_buffer(void * data, size_t size);
+/* test compilation flags */
+#ifdef PRE_LIBRARY
+# ifdef POST_LIBRARY
+#  error defines PRE_LIBRARY and POST_LIBRARY together!
+# endif
+# ifdef REPLAY_LIBRARY
+#  error defines PRE_LIBRARY and REPLAY_LIBRARY together!
+# endif
+#endif
+#ifdef POST_LIBRARY
+# ifdef REPLAYER_LIBRARY
+#  error defines POST_LIBRARY and REPLAYER_LIBRARY together!
+# endif
+#endif
 
 #ifndef ATTR_UNUSED
 # define ATTR_UNUSED __attribute__((unused))
 #endif
 
+/* same as xasm/processor.h */
 struct pusha_regs {
 	uint32_t flags;
 	uint32_t edi;
@@ -41,6 +51,11 @@ struct pusha_regs {
 };
 
 #ifdef POST_LIBRARY
+
+/* interp/logger.h */
+extern void
+append_buffer(void * data, size_t size);
+
 # define DEF_HANDLER(name)	int post_##name(struct pusha_regs * regs ATTR_UNUSED)
 # define INT_VAL(x)		({int ___x = (int)(x); append_buffer(&___x, sizeof(int)); ___x;})
 # define PTR_VAL(x)		({void * ___x = (void*)(x); append_buffer(&___x, sizeof(void *)); ___x;})
@@ -48,10 +63,16 @@ struct pusha_regs {
 #endif
 
 #ifdef REPLAY_LIBRARY
+
+
+/* defined in interp/syscall_replayer.h */
+extern void
+read_syscall_data(void * ptr, size_t len);
+
 # define DEF_HANDLER(name)	int replay_##name(struct pusha_regs * regs ATTR_UNUSED)
-# define INT_VAL(x)		({load_from_buffer(&(x), sizeof(int)); (x);})
-# define PTR_VAL(x)		({load_from_buffer(&(x), sizeof(void*)); (void*)(x);})
-# define BUFFER(p, s)	do {load_from_buffer((p), (s));} while(0)
+# define INT_VAL(x)		({read_syscall_data(&(x), sizeof(int)); (x);})
+# define PTR_VAL(x)		({read_syscall_data(&(x), sizeof(void*)); (void*)(x);})
+# define BUFFER(p, s)	do {read_syscall_data((p), (s));} while(0)
 #endif
 
 #define EAX_AS_INT		(INT_VAL(regs->eax))

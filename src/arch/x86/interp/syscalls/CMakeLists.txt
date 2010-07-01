@@ -1,6 +1,7 @@
 SET(SRC
 	log_syscalls.h
 	log_syscalls.c
+	replay_syscalls.c
 	handlers.h
 	protos.h
 	syscall_table.c
@@ -29,8 +30,8 @@ set_interp_properties(post_library)
 set_interp_properties(replay_library)
 
 GET_TARGET_PROPERTY(pre_ori_cflags pre_library COMPILE_FLAGS)
-GET_TARGET_PROPERTY(post_ori_cflags pre_library COMPILE_FLAGS)
-GET_TARGET_PROPERTY(replay_ori_cflags pre_library COMPILE_FLAGS)
+GET_TARGET_PROPERTY(post_ori_cflags post_library COMPILE_FLAGS)
+GET_TARGET_PROPERTY(replay_ori_cflags replay_library COMPILE_FLAGS)
 
 SET_PROPERTY(TARGET pre_library
 	PROPERTY COMPILE_DEFINITIONS PRE_LIBRARY)
