@@ -2075,7 +2075,7 @@ gdbserver_main (int argc ATTR_UNUSED, char *argv[])
 	error ("Attaching not supported on this target");
 
       /* Otherwise succeeded.  */
-      SN_reset_registers();
+      SN_reset_state();
     }
   else
     {

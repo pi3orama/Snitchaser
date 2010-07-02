@@ -44,6 +44,8 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 		syscall_table[nr].replay_handler(regs);
 		finish_syscall_read();
 
+		sock_send(regs, sizeof(*regs));
+
 		/* in interp/replayer.c */
 		notify_gdbserver();
 

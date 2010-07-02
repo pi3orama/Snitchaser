@@ -51,9 +51,9 @@ ptrace_set_reg(pid_t pid, uintptr_t val, unsigned int offset)
 
 void
 arch_restore_registers(pid_t pid, struct pusha_regs * regs,
-		void * eip)
+		uintptr_t eip)
 {
-	TRACE(REPLAYER_HOST, "arch_restore_registers: new eip is %p\n", eip);
+	TRACE(REPLAYER_HOST, "arch_restore_registers: new eip is 0x%x\n", eip);
 	struct user_regs_struct urs;
 
 	ptrace_get_regset(pid, &urs);
@@ -71,8 +71,8 @@ arch_restore_registers(pid_t pid, struct pusha_regs * regs,
 
 #undef set_reg
 
-	if (eip != NULL)
-		urs.eip = (uintptr_t)eip;
+	if (eip != 0)
+		urs.eip = eip;
 
 	ptrace_set_regset(pid, &urs);
 }

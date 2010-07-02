@@ -134,7 +134,7 @@ SN_init(void)
 }
 
 void
-SN_reset_registers(void)
+SN_reset_state(void)
 {
 	/* first: retrieve registers from tls stack */
 	struct pusha_regs regs;
@@ -152,10 +152,10 @@ SN_reset_registers(void)
 	DEBUG(XGDBSERVER, "\tesp=0x%x\n", regs.esp);
 	DEBUG(XGDBSERVER, "\tebp=0x%x\n", regs.ebp);
 
-	void * eip;
+	uintptr_t eip;
 	target_read_memory((uintptr_t)(SN_info.stack_base + OFFSET_TARGET),
 			&eip, sizeof(eip));
-	DEBUG(XGDBSERVER, "\teip=%p\n", eip);
+	DEBUG(XGDBSERVER, "\teip=0x%x\n", eip);
 
 	/* restore registers */
 	arch_restore_registers(SN_info.pid, &regs, eip);
@@ -281,7 +281,7 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 	if (mark != SYSCALL_MARK)
 		THROW_FATAL(EXP_FILE_CORRUPTED, "mark should be 0x%x but actually 0x%x",
 				SYSCALL_MARK, mark);
-	struct pusha_regs ori_regs;
+	struct pusha_regs ori_regs, new_regs;
 	read_log_full(&ori_regs, sizeof(ori_regs));
 
 
@@ -305,9 +305,12 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 	/* begin syscall cycle */
 	syscall_read_cycle();
 
+	sock_recv(&new_regs, sizeof(new_regs));
+
 	wait_for_replayer_sync();
 
-	ptrace_set_eip(SN_info.pid, (uintptr_t)new_eip);
+	/* restore registers */
+	arch_restore_registers(SN_info.pid, &new_regs, new_eip);
 	adjust_wait_result();
 
 	return 0;

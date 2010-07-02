@@ -35,7 +35,7 @@ extern void
 SN_init(void);
 
 extern void
-SN_reset_registers(void);
+SN_reset_state(void);
 
 extern int
 SN_ptrace_cont(enum __ptrace_request req, pid_t pid,

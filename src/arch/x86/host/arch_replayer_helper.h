@@ -49,7 +49,7 @@ def_ptrace_getset_REG(edi)
 
 /* if eip == NULL, don't reset eip */
 void
-arch_restore_registers(pid_t pid, struct pusha_regs * regs, void * eip);
+arch_restore_registers(pid_t pid, struct pusha_regs * regs, uintptr_t eip);
 
 #endif
 
