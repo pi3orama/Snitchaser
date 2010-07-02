@@ -162,14 +162,6 @@ SN_reset_state(void)
 }
 
 static int
-SN_cont(struct user_regs_struct * psaved_regs)
-{
-	TRACE(XGDBSERVER, "ptrace_cont\n");
-	THROW_FATAL(EXP_UNIMPLEMENTED, "ptrace_cont is not implemented");
-	return 0;
-}
-
-static int
 ptrace_single_step(bool_t is_branch,
 		bool_t is_int3, bool_t is_ud, bool_t is_rdtsc,
 		bool_t is_call, size_t call_sz, bool_t is_ret,
@@ -269,6 +261,39 @@ ptrace_single_step(bool_t is_branch,
 	}
 	return ret;
 }
+
+static int
+SN_cont(struct user_regs_struct * psaved_regs)
+{
+	TRACE(XGDBSERVER, "ptrace_cont\n");
+
+	/* when cont:
+	 * 0: readahead log, if next mark si signal mark, unable to process
+	 * 1. use interp helper to scan the next branch;
+	 * 2. helper returns the address of that instruction;
+	 * 3. patch that inst: replace it by an int3;
+	 * 4. wait;
+	 * (4.1: whether eip is previous patched instruction?
+	 *       if it is, normal case, turn to step 5;
+	 *       if not: abnormal case, turn to step x0;)
+	 * 5. unpatch code;
+	 * 6. if the original inst is an int3, ptrace cont then return;
+	 * 7. if not, single step and wait;
+	 * 8. goto step 0;
+	 *
+	 * x0: signal arise:
+	 *     1. unpatch code;
+	 *     2. if original inst is int3, goto int3 then continue;
+	 *     3. 
+	 *     read log and set eip to next target directly,
+	 * */
+
+	THROW_FATAL(EXP_UNIMPLEMENTED, "ptrace_cont is not implemented");
+	return 0;
+}
+
+
+
 
 /* 
  * return value: if signal arise, return signal number
