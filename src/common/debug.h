@@ -81,7 +81,7 @@ __debug_component_names[NR_DEBUG_COMPONENTS] = {
 };
 #endif
 
-#if 1
+#if 0
 
 static const enum __debug_level
 __debug_component_levels[NR_DEBUG_COMPONENTS] = {

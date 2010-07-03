@@ -212,8 +212,9 @@ ptrace_single_step(bool_t is_branch,
 		int status = my_waitid(TRUE, TRUE, 0);
 		if (status != SIGTRAP) {
 			WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
-			WARNING(XGDBSERVER, "normal code generate unlogged signal %d\n",
-					status);
+			WARNING(XGDBSERVER,
+					"normal code generate unlogged signal %d at 0x%x\n",
+					status, (uintptr_t)psaved_regs->eip);
 			WARNING(XGDBSERVER, "reset eip to 0x%x\n", pnext_inst);
 			ptrace_set_eip(SN_info.pid, pnext_inst);
 
@@ -227,9 +228,9 @@ ptrace_single_step(bool_t is_branch,
 	int status = my_waitid(TRUE, TRUE, 0);
 
 	if (status != SIGTRAP) {
+		WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
 		WARNING(XGDBSERVER, "recevie signal %d at 0x%x\n", status,
 				(uintptr_t)psaved_regs->eip);
-		WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
 
 		/* for call and ret, we should adjust esp */
 		if (is_call) {
@@ -388,7 +389,7 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 	assert(psaved_regs != NULL);
 	ptrace_set_regset(SN_info.pid, psaved_regs);
 
-	TRACE(XGDBSERVER, "in single_step_syscall, eip=0x%x, esp=0x%x\n",
+	TRACE(XGDBSERVER, "in single_step_syscall, eip=0x%lx, esp=0x%lx\n",
 			psaved_regs->eip, psaved_regs->esp);
 
 	uint32_t mark = read_u32_from_log();

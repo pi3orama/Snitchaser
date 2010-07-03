@@ -48,7 +48,7 @@ replay_mmap2(struct pusha_regs * regs)
 			prot |= PROT_WRITE;
 		}
 
-		uint32_t flags = MAP_ANONYMOUS | MAP_FIXED;
+		uint32_t flags = MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE;
 
 		uintptr_t ret;
 		/* it is a anon map */
@@ -56,7 +56,13 @@ replay_mmap2(struct pusha_regs * regs)
 				(uint32_t)(ptr), len, prot,
 				flags, -1, 0);
 		if (ret != (uintptr_t)(ptr)) {
-			FATAL(LOG_SYSCALL, "mmap2 inconsistant\n");
+			ERROR(LOG_SYSCALL, "mmap2 error:\n");
+			ERROR(LOG_SYSCALL, "ptr=0x%x\n", (uint32_t)(ptr));
+			ERROR(LOG_SYSCALL, "len=0x%x\n", len);
+			ERROR(LOG_SYSCALL, "prot=0x%x\n", prot);
+			ERROR(LOG_SYSCALL, "flags=0x%x\n", flags);
+			FATAL(LOG_SYSCALL, "mmap2 inconsistency: 0x%lx vs 0x%lx\n",
+					ret, (uintptr_t)(ptr));
 		}
 
 		BUFFER(ptr, len);
