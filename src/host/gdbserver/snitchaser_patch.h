@@ -27,6 +27,7 @@ struct SN_info {
 	void * is_branch_inst;
 	void * replay_nop;
 	void * syscall_helper;
+	void * get_next_branch;
 };
 
 extern struct SN_info SN_info;

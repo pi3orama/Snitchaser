@@ -20,5 +20,11 @@
 #define SYSCALL_READ_ERROR_MARK	(0xffffffff)
 #define SYSCALL_READ_END_MARK	(0x0f0f0f0f)
 
+/* see comments in xasm/tls.h */
+#define VALID_PTR_MIN	(0x6006000)
+#define VALID_PTR_MAX	(0xC0000000)
+#define IS_VALID_PTR(p)	(((p) < VALID_PTR_MAX) && ((p) > VALID_PTR_MIN))
+#define IS_SYSCALL(p)	((p) < SYSCALL_MAX)
+
 #endif
 

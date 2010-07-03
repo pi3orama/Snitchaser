@@ -250,7 +250,7 @@ ptrace_single_step(bool_t is_branch,
 	/* read from log */
 	uintptr_t real_eip = read_ptr_from_log();
 
-	DEBUG(XGDBSERVER, "branch to 0x%x, should be 0x%x\n",
+	TRACE(XGDBSERVER, "branch to 0x%x, should be 0x%x\n",
 			eip, real_eip);
 
 	if (eip != real_eip) {
@@ -263,37 +263,120 @@ ptrace_single_step(bool_t is_branch,
 }
 
 static int
-SN_cont(struct user_regs_struct * psaved_regs)
+SN_single_step(void);
+static int
+SN_cont(void)
 {
 	TRACE(XGDBSERVER, "ptrace_cont\n");
 
 	/* when cont:
-	 * 0: readahead log, if next mark si signal mark, unable to process
-	 * 1. use interp helper to scan the next branch;
+	 * 0. read ahead from log, if next mark is signal mark, unimplement
+	 * 1. use interp helper to find the next branch;
 	 * 2. helper returns the address of that instruction;
 	 * 3. patch that inst: replace it by an int3;
 	 * 4. wait;
 	 * (4.1: whether eip is previous patched instruction?
 	 *       if it is, normal case, turn to step 5;
 	 *       if not: abnormal case, turn to step x0;)
-	 * 5. unpatch code;
+	 * 5. unpatch code and reset eip;
 	 * 6. if the original inst is an int3, ptrace cont then return;
 	 * 7. if not, single step and wait;
 	 * 8. goto step 0;
 	 *
 	 * x0: signal arise:
 	 *     1. unpatch code;
-	 *     2. if original inst is int3, goto int3 then continue;
-	 *     3. 
-	 *     read log and set eip to next target directly,
+	 *     2. if original inst is int3, goto int3, ptrace continue;
+	 *     3. if the original inst is not int3, single step then goto 0;
 	 * */
 
-	THROW_FATAL(EXP_UNIMPLEMENTED, "ptrace_cont is not implemented");
+	for (;;) {
+		/* readahead and check mark */
+		uintptr_t ptr = readahead_log_ptr();
+		if ((!IS_VALID_PTR(ptr)) && (ptr != SYSCALL_MARK)) {
+			THROW_FATAL(EXP_UNIMPLEMENTED, "read from log, next mark is 0x%x",
+					ptr);
+			/* NOTICE: a signal may arise at another block! for example:
+			 *
+			 * (current eip):
+			 * movl xx, xx
+			 * jmp 1f
+			 * nop
+			 * 1: xxxx	(raise a signal)
+			 * */
+		}
+
+		struct user_regs_struct saved_regs;
+		ptrace_get_regset(SN_info.pid, &saved_regs);
+
+		uintptr_t eip = saved_regs.eip;
+
+		TRACE(XGDBSERVER, "new block begin at 0x%x\n", eip);
+
+		/* find the next branch instruction */
+		ptrace_set_eip(SN_info.pid, (uintptr_t)(SN_info.get_next_branch));
+		target_continue();
+
+		sock_send_ptr(eip);
+		uintptr_t branch_start = sock_recv_ptr();
+		wait_for_replayer_sync();
+
+		if (!IS_VALID_PTR(branch_start))
+			THROW_FATAL(EXP_GDBSERVER_ERROR, "interp report next branch at 0x%x",
+					branch_start);
+
+		TRACE(XGDBSERVER, "branch_start at 0x%x\n", branch_start);
+
+		/* restore regs */
+		ptrace_set_regset(SN_info.pid, &saved_regs);
+
+		/* save and patch */
+		uint8_t ori_inst;
+		target_read_memory(branch_start, &ori_inst, sizeof(ori_inst));
+
+		/* 0xcc is int3 */
+		uint8_t new_inst = 0xcc;
+		target_write_memory(branch_start, &new_inst, sizeof(new_inst));
+
+		/* continue and wait */
+		/* don't set NOWAIT! */
+		target_continue();
+		int signal = my_waitid(FALSE, TRUE, 0);
+
+		/* target trapped */
+		ptrace_get_regset(SN_info.pid, &saved_regs);
+		uintptr_t new_eip = saved_regs.eip;
+		TRACE(XGDBSERVER, "trapped at 0x%x\n", new_eip);
+
+		/* unpatch code */
+		target_write_memory(branch_start, &ori_inst, sizeof(ori_inst));
+
+		if (new_eip != branch_start + 1) {
+			/* may be signal arises */
+			WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
+			WARNING(XGDBSERVER,
+					"target stopped at 0x%x, not 0x%x, signal: %d\n",
+					new_eip, branch_start, signal);
+			/* single step and wait */
+			SN_single_step();
+			my_waitid(FALSE, TRUE, SIGTRAP);
+
+			/* again!! */
+			continue;
+		}
+
+		/* target stopped at my breakpoint */
+		/* reset eip! */
+		ptrace_set_eip(SN_info.pid, branch_start);
+
+		if (ori_inst == 0xcc)
+			return ptrace(PTRACE_CONT, SN_info.pid, 0, 0);
+
+		/* single step then continue */
+		SN_single_step();
+	}
+
 	return 0;
 }
-
-
-
 
 /* 
  * return value: if signal arise, return signal number
@@ -302,13 +385,21 @@ SN_cont(struct user_regs_struct * psaved_regs)
 static int
 single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 {
+	assert(psaved_regs != NULL);
+	ptrace_set_regset(SN_info.pid, psaved_regs);
+
+	TRACE(XGDBSERVER, "in single_step_syscall, eip=0x%x, esp=0x%x\n",
+			psaved_regs->eip, psaved_regs->esp);
+
 	uint32_t mark = read_u32_from_log();
 	if (mark != SYSCALL_MARK)
-		THROW_FATAL(EXP_FILE_CORRUPTED, "mark should be 0x%x but actually 0x%x",
+		THROW_FATAL(EXP_FILE_CORRUPTED,
+				"mark should be 0x%x but actually 0x%x",
 				SYSCALL_MARK, mark);
 	struct pusha_regs ori_regs, new_regs;
 	read_log_full(&ori_regs, sizeof(ori_regs));
-
+	TRACE(XGDBSERVER, "esp in ori_regs is 0x%x\n",
+			ori_regs.esp);
 
 	TRACE(XGDBSERVER, "single step syscall, next inst is 0x%x\n", new_eip);
 
@@ -342,10 +433,14 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 }
 
 static int
-SN_single_step(struct user_regs_struct * psaved_regs)
+SN_single_step(void)
 {
+
+	struct user_regs_struct saved_regs;
+	ptrace_get_regset(SN_info.pid, &saved_regs);
+
 	/* fetch original eip */
-	uintptr_t eip = ptrace_get_eip(SN_info.pid);
+	uintptr_t eip = saved_regs.eip;
 
 	ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.is_branch_inst);
 	target_continue();
@@ -361,7 +456,7 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 		return ptrace_single_step(FALSE, FALSE,
 				FALSE, FALSE, FALSE, 0, FALSE,
 				pnext_inst,
-				psaved_regs);
+				&saved_regs);
 	}
 
 	/* see compiler.c */
@@ -380,7 +475,6 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 	wait_for_replayer_sync();
 
 	if (is_int80 || is_vdso_syscall) {
-		WARNING(REPLAYER_HOST, "testing process syscall\n");
 		uintptr_t new_eip;
 		/* 2 and 7 are the size of the syscall instruction */
 		if (is_int80) {
@@ -388,7 +482,8 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 		} else {
 			new_eip = eip + 7;
 		}
-		int signum = single_step_syscall(new_eip, psaved_regs);
+
+		int signum = single_step_syscall(new_eip, &saved_regs);
 		if (signum != 0)
 			THROW_FATAL(EXP_UNIMPLEMENTED, "syscall is broken by signal, "
 					"doesn't support");
@@ -397,7 +492,7 @@ SN_single_step(struct user_regs_struct * psaved_regs)
 
 	return ptrace_single_step(TRUE, is_int3, is_ud,
 			is_rdtsc, is_call, call_sz,
-			is_ret, pnext_inst, psaved_regs);
+			is_ret, pnext_inst, &saved_regs);
 }
 
 int
@@ -408,13 +503,12 @@ SN_ptrace_cont(enum __ptrace_request req, pid_t pid,
 	if (pid != SN_info.pid)
 		return ptrace(req, pid, addr, data);
 
-	struct user_regs_struct saved_urs;
-	ptrace_get_regset(SN_info.pid, &saved_urs);
+//	ptrace_get_regset(SN_info.pid, &saved_urs);
 
 	if (req == PTRACE_SINGLESTEP)
-		return SN_single_step(&saved_urs);
+		return SN_single_step();
 	else
-		return SN_cont(&saved_urs);
+		return SN_cont();
 
 #if 0
 	/* get current eip, put it into OFFSET_TARGET, then redirect

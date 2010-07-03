@@ -27,7 +27,10 @@ pre_log_syscall(struct pusha_regs * regs)
 	tpd->current_syscall_nr = nr;
 
 	append_buffer_u32(SYSCALL_MARK);
-	append_buffer(regs, sizeof(*regs));
+
+	struct pusha_regs real_regs = *regs;
+	real_regs.esp = (uintptr_t)(tpd->old_stack_top);
+	append_buffer(&real_regs, sizeof(real_regs));
 
 	assert((nr >= 0) && (nr < SYSCALL_TABLE_SZ));
 

@@ -789,5 +789,19 @@ do_replay_is_branch_inst(void)
 	FATAL(REPLAYER_TARGET, "shouldn't come here\n");
 }
 
+void
+do_replay_get_next_branch(void)
+{
+	void * eip;
+	eip = (void*)sock_recv_ptr();
+
+	void * branch_start = scan_insts(eip);
+	sock_send_ptr((uintptr_t)branch_start);
+
+	notify_gdbserver();
+
+	FATAL(REPLAYER_TARGET, "shouldn't come here\n");
+}
+
 // vim:ts=4:sw=4
 
