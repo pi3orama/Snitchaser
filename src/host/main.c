@@ -347,6 +347,8 @@ do_recover(struct opts * opts)
 		set_catched_var(exec_full_fn, get_full_name(exec_fn));
 		assert(exec_full_fn != NULL);
 
+
+		const char * real_exec_fn = exec_full_fn;
 		/* if exec_full_fn same as interp_so_full_name, the real exec file
 		 * is from exec_fn_2. */
 		if (strcmp(exec_full_fn, opts->interp_so_full_name) == 0) {
@@ -359,6 +361,27 @@ do_recover(struct opts * opts)
 
 			set_catched_var(exec_full_fn_2, get_full_name(exec_fn_2));
 			assert(exec_full_fn_2 != NULL);
+			real_exec_fn = exec_full_fn_2;
+		}
+
+		/* check: whether real_exec_fn is in ckpt */
+		/* if real_exec_fn doesn't in ckpt, find_region
+		 * throws an exception */
+		define_exp(exp_check_exec);
+		TRY(exp_check_exec) {
+			find_region(ckpt_regions, real_exec_fn);
+		} NO_FINALLY
+		CATCH(exp_check_exec) {
+			switch (exp_check_exec.type) {
+			case EXP_CKPT_REGION_NOT_FOUND:
+				ERROR(REPLAYER_HOST, "unable to find %s in checkpoint, check cwd\n",
+					real_exec_fn);
+				THROW_FATAL(EXP_CKPT_REGION_NOT_FOUND,
+						"unable to find real exec in checkpoint, check cwd");
+				break;
+			default:
+				RETHROW(exp_check_exec);
+			}
 		}
 
 		/* don't use 'parent_execve': we have gdbserver */
@@ -597,9 +620,7 @@ main(int argc, char * argv[])
 
 	} FINALLY {
 		get_catched_var(interp_so_full_name);
-
 		xfree_null(interp_so_full_name);
-
 	} CATCH(exp) {
 		RETHROW(exp);
 	}

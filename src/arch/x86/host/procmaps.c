@@ -100,9 +100,11 @@ read_procmem_line(char * line, struct proc_mem_region * region, char ** p_fn)
 
 	/* I don't know why err == 4, but err is 4. */
 	if (err != 4) {
-		assert(err == 0);
 		/* we meet the end of the file */
-		return NULL;
+		if (err == 0)
+			return NULL;
+		THROW_FATAL(EXP_PROC_MAPS, "scanf line \"%s\" failed",
+				line);
 	}
 
 	/* if err != 0, then *p_fn must contain '\n', or else, it has beed set

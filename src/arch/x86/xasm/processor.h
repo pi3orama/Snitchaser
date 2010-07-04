@@ -7,7 +7,7 @@
 
 /* xmain return stack adjustment value, in dwords */
 struct pusha_regs {
-	uint32_t flags;
+	uint32_t eflags;
 	uint32_t edi;
 	uint32_t esi;
 	uint32_t ebp;
@@ -113,7 +113,7 @@ restore_reg_state(struct reg_state * p, struct pusha_regs * r,
 
 	if (peip != NULL)
 		*peip = (void*)u->eip;
-	r->flags = u->eflags;
+	r->eflags = u->eflags;
 	r->esp = u->esp;
 
 #define restorsr(s, r) asm volatile("movl %%eax, %%" #r : : "a" (s))
@@ -152,7 +152,7 @@ build_reg_state(struct reg_state * p, struct pusha_regs * r,
 	u->eax = r->eax;
 	u->orig_eax = r->eax;
 	u->eip = (uint32_t)(eip);
-	u->eflags = r->flags;
+	u->eflags = r->eflags;
 	u->esp = r->esp;
 
 #define readsr(d, r) asm volatile("movl %%" #r ", %%eax" : "=a" (d))

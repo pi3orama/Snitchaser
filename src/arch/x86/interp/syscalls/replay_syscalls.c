@@ -22,6 +22,7 @@ print_regs(struct pusha_regs * regs)
 #define print_reg(xx)	\
 	WARNING(REPLAYER_TARGET, #xx "=0x%x\n", regs->xx)
 
+	print_reg(eflags);
 	print_reg(eax);
 	print_reg(ebx);
 	print_reg(ecx);
@@ -42,10 +43,18 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 	regs->esp = (uintptr_t)(tpd->old_stack_top);
 	TRACE(REPLAYER_TARGET, "in do_replay_syscall_helper\n");
 
-
 	/* check regs */
 	struct pusha_regs ori_regs;
 	sock_recv(&ori_regs, sizeof(ori_regs));
+
+	/* clear bit 21 of eflags */
+	/* from intel manual: 
+	 * ID: Identification (bit 21). The ability of a program or procedure to
+	 * set or clear this flag indicates support for the CPUID instruction. */
+	/* bit 21 in eflags is random when program start */
+	regs->eflags &= 0xffdfffff;
+	ori_regs.eflags &= 0xffdfffff;
+
 
 	if (memcmp(&ori_regs, regs, sizeof(*regs)) != 0) {
 		WARNING(REPLAYER_TARGET,
