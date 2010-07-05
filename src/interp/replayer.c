@@ -418,7 +418,6 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 	/* load each memory region */
 	struct mem_region region;
 	do {
-
 		read_from_file(ckpt_fd, &region, sizeof(region));
 		if (region.start != MEM_REGIONS_END_MARK) {
 			do_restore_mem_region(&region, interp_fn, exec_fn);
@@ -439,8 +438,10 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 
 	/* restore register state */
 	void * eip;
-	struct pusha_regs * pregs = (struct pusha_regs *)(&pusha_regs);
-	restore_reg_state(&ckpt_head.reg_state, pregs, &eip);
+	volatile struct pusha_regs * pregs = &pusha_regs;
+	restore_reg_state(&ckpt_head.reg_state,
+			(struct pusha_regs *)pregs, &eip);
+	/* volatile pregs to pervent setting of esp be optimized out */
 	pregs->esp = (uintptr_t)real_esp;
 
 	TRACE(REPLAYER_TARGET, "registers:\n");

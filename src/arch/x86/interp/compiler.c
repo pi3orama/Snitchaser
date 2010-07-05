@@ -659,8 +659,21 @@ do_real_branch(void)
 	struct tls_code_cache_t * cache = &tpd->code_cache;
 
 #if 0
-	if ((uintptr_t)tpd->target == 0x8048560)
+	if ((uintptr_t)tpd->target == 0xb7fb7ca0) {
+		struct pusha_regs * regs = (void*)(tpd->stack_top) -
+			sizeof(*regs);
+#if 0
+		volatile int i = 0;
+		while(i == 0);
 		breakpoint();
+		return;
+#endif
+		WARNING(COMPILER, "compiler: eax=0x%x\n", regs->eax);
+		WARNING(COMPILER, "compiler: *(void**)(0xb7fd0799)=%p\n",
+				*(void**)(0xb7fd0799));
+		WARNING(COMPILER, "compiler: *(void**)(0xb7fc7914)=%p\n",
+				*(void**)(0xb7fc7914));
+	}
 #endif
 
 	TRACE(COMPILER, "do_real_branch, dt=%p, ce=%p, lte=%p\n", tpd->target,

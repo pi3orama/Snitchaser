@@ -245,6 +245,14 @@ flush_mem_regions(int fd)
 static void
 do_make_checkpoint(struct pusha_regs * regs, void * eip)
 {
+
+#if 0
+	WARNING(COMPILER, "ckpt: *(void**)(0xb7fd0799)=%p\n",
+			*(void**)(0xb7fd0799));
+	WARNING(COMPILER, "ckpt: *(void**)(0xb7fc7914)=%p\n",
+			*(void**)(0xb7fc7914));
+#endif
+
 	assert(sizeof(struct checkpoint_head) < 0x2000);
 	struct thread_private_data * tpd = get_tpd();
 	struct tls_logger * logger = &tpd->logger;
