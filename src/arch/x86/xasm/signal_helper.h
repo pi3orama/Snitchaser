@@ -172,6 +172,8 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } k_sigset_t;
 
+typedef unsigned long k_old_sigset_t;
+
 struct ucontext {
 	unsigned long	  uc_flags;
 	struct ucontext  *uc_link;

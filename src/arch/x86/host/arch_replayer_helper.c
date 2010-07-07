@@ -68,6 +68,7 @@ arch_restore_registers(pid_t pid, struct pusha_regs * regs,
 	set_reg(edi);
 	set_reg(esp);
 	set_reg(ebp);
+	set_reg(eflags);
 
 #undef set_reg
 

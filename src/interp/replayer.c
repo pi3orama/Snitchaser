@@ -16,6 +16,7 @@
 #include <xasm/compiler.h>
 
 #include <interp/arch_replayer.h>
+#include <interp/arch_signal.h>
 
 #include <interp/checkpoint.h>
 #include <interp/replayer.h>
@@ -451,6 +452,7 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 	TRACE(REPLAYER_TARGET, "\tedx=0x%x\n", pregs->edx);
 	TRACE(REPLAYER_TARGET, "\tesp=0x%x\n", pregs->esp);
 	TRACE(REPLAYER_TARGET, "\tebp=0x%x\n", pregs->ebp);
+	TRACE(REPLAYER_TARGET, "\teflags=0x%x\n", pregs->eflags);
 
 
 	/* prepare replay: */
@@ -458,6 +460,9 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 	tpd->target = eip;
 	TRACE(REPLAYER_TARGET, "target eip = %p\n", eip);
 	TRACE(REPLAYER_TARGET, "pusha_regs at %p\n", &pusha_regs);
+
+	/* mask all signals */
+	arch_replay_mask_signals();
 
 	/* setup function pointers */
 	/* FIXME which function? */

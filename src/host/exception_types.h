@@ -22,6 +22,7 @@ def_exp_type(EXP_SOCKPAIR_UNSYNC, "sockpair communication protoal broken")
 
 def_exp_type(EXP_GDBSERVER_EXIT, "gdbserver calls exit() or gdbserver_main return")
 def_exp_type(EXP_GDBSERVER__EXIT, "gdbserver calls _exit()")
+def_exp_type(EXP_GDBSERVER_TARGET_SIGINT, "target process receives a SIGINT")
 def_exp_type(EXP_GDBSERVER_ERROR, "gdbserver encounters an error")
 
 def_exp_type(EXP_LOG_CORRUPTED, "log corrupted")

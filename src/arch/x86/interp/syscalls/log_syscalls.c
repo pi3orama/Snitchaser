@@ -18,7 +18,7 @@
 static int
 pre_log_syscall(struct pusha_regs * regs)
 {
-	VERBOSE(LOG_SYSCALL, "come here, eax=%d, ebx=%d\n",
+	TRACE(LOG_SYSCALL, "begin syscall, eax=%d, ebx=%d\n",
 			regs->eax, regs->ebx);
 
 	struct thread_private_data * tpd = get_tpd();
@@ -48,7 +48,7 @@ post_log_syscall(struct pusha_regs * regs)
 	struct thread_private_data * tpd = get_tpd();
 	int nr = tpd->current_syscall_nr;
 
-	VERBOSE(LOG_SYSCALL, "come here, eax=0x%x\n",
+	TRACE(LOG_SYSCALL, "post syscall, eax=0x%x\n",
 			regs->eax);
 	/* put a 'no-signal-mark' */
 	append_buffer_u32(NO_SIGNAL_MARK);

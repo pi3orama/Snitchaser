@@ -25,6 +25,9 @@ SET(SRC
 	arch_replayer.S
 	arch_replayer.c
 	arch_replayer.h
+
+	arch_signal.c
+	arch_signal.h
 	)
 
 SET_SOURCE_FILES_PROPERTIES(kutils.c

@@ -5,6 +5,7 @@ SET(tests
 	test_ylinker
 	test_normal_linker
 	test_flush_logger
+	test_segfault
 	)
 
 build_tests("${tests}" "")

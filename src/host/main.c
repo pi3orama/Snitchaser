@@ -650,6 +650,10 @@ main(int argc, char * argv[])
 					"gdbserver call _exit with value 0%o\n",
 					exp2.u.val);
 			_exit(exp2.u.val);
+		case EXP_GDBSERVER_TARGET_SIGINT:
+			VERBOSE(REPLAYER_HOST, "%s\n",
+					exp2.msg);
+			exit(0);
 		default:
 			RETHROW(exp2);
 		}

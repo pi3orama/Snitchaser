@@ -151,6 +151,7 @@ SN_reset_state(void)
 	DEBUG(XGDBSERVER, "\tedi=0x%x\n", regs.edi);
 	DEBUG(XGDBSERVER, "\tesp=0x%x\n", regs.esp);
 	DEBUG(XGDBSERVER, "\tebp=0x%x\n", regs.ebp);
+	DEBUG(XGDBSERVER, "\teflags=0x%x\n", regs.eflags);
 
 	uintptr_t eip;
 	target_read_memory((uintptr_t)(SN_info.stack_base + OFFSET_TARGET),
@@ -229,7 +230,7 @@ ptrace_single_step(bool_t is_branch,
 
 	if (status != SIGTRAP) {
 		WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
-		WARNING(XGDBSERVER, "recevie signal %d at 0x%x\n", status,
+		WARNING(XGDBSERVER, "receive signal %d at 0x%x\n", status,
 				(uintptr_t)psaved_regs->eip);
 
 		/* for call and ret, we should adjust esp */
@@ -357,6 +358,12 @@ SN_cont(void)
 			WARNING(XGDBSERVER,
 					"target stopped at 0x%x, not 0x%x, signal: %d\n",
 					new_eip, branch_start, signal);
+			if (signal == SIGINT) {
+				/* target was killed by C-c */
+				THROW(EXP_GDBSERVER_TARGET_SIGINT,
+						"target reveice sigint at 0x%x", new_eip);
+			}
+
 			/* single step and wait */
 			SN_single_step();
 			my_waitid(FALSE, TRUE, SIGTRAP);
