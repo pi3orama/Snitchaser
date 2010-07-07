@@ -216,6 +216,11 @@ ptrace_single_step(bool_t is_branch,
 			WARNING(XGDBSERVER,
 					"normal code generate unlogged signal %d at 0x%x\n",
 					status, (uintptr_t)psaved_regs->eip);
+
+			if (status == SIGINT)
+				THROW_FATAL(EXP_GDBSERVER_TARGET_SIGNALED,
+						"target signaled by sigint");
+
 			WARNING(XGDBSERVER, "reset eip to 0x%x\n", pnext_inst);
 			ptrace_set_eip(SN_info.pid, pnext_inst);
 
@@ -232,6 +237,9 @@ ptrace_single_step(bool_t is_branch,
 		WARNING(XGDBSERVER, "NEVER TESTED CODE!!!\n");
 		WARNING(XGDBSERVER, "receive signal %d at 0x%x\n", status,
 				(uintptr_t)psaved_regs->eip);
+		if (status == SIGINT)
+			THROW_FATAL(EXP_GDBSERVER_TARGET_SIGNALED,
+					"target signaled by sigint");
 
 		/* for call and ret, we should adjust esp */
 		if (is_call) {
@@ -358,11 +366,9 @@ SN_cont(void)
 			WARNING(XGDBSERVER,
 					"target stopped at 0x%x, not 0x%x, signal: %d\n",
 					new_eip, branch_start, signal);
-			if (signal == SIGINT) {
-				/* target was killed by C-c */
-				THROW(EXP_GDBSERVER_TARGET_SIGINT,
-						"target reveice sigint at 0x%x", new_eip);
-			}
+			if (signal == SIGINT)
+				THROW_FATAL(EXP_GDBSERVER_TARGET_SIGNALED,
+						"target signaled by SIGINT");
 
 			/* single step and wait */
 			SN_single_step();
