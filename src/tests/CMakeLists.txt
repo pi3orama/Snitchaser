@@ -18,6 +18,10 @@ SET_PROPERTY(TARGET test_linker
 	APPEND
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
 	)
+SET_PROPERTY(TARGET test_segfault
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
 SET_PROPERTY(TARGET test_xlinker
 	APPEND
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libxinterp.so"

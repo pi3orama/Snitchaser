@@ -27,7 +27,6 @@ arch_replay_mask_signals(void)
 	all_mask.sig[0] = ~all_mask.sig[0];
 	all_mask.sig[1] = ~all_mask.sig[1];
 
-
 	int err = INTERNAL_SYSCALL_int80(rt_sigprocmask,
 			4, SIG_BLOCK, &all_mask, &old_mask,
 			sizeof(all_mask));

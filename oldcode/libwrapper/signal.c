@@ -237,7 +237,7 @@ do_wrapped_sigreturn(struct sigframe frame)
 	}
 	/* in replay phase, return normally. frame should have been adjusted
 	 * by loader */
-	/* in running phase, when we do sigreturn, if the syscall is break, then we must
+	/* in running phase, when we do sigreturn, if the syscall is broken, we must
 	 * restore the __syscall_reenter_counter and __syscall_reenter_base. sometime a syscall
 	 * can be break more than once. when it break a 2nd time, those 2 flags has been override. */
 	if (per_frame_info->is_break) {
