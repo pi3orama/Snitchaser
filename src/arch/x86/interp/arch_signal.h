@@ -11,8 +11,11 @@
 k_sigset_t
 arch_replay_mask_signals(void);
 
-void
-arch_reset_sigmask(k_sigset_t old_set);
+k_sigset_t
+arch_set_sigmask(k_sigset_t old_set);
+
+void        
+arch_init_signal(void);
 
 #endif
 

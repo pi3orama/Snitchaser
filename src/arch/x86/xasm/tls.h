@@ -12,10 +12,10 @@
 #include <common/assert.h>
 #include <common/list.h>
 #include <xasm/syscall.h>
+#include <xasm/signal_helper.h>
 #include <interp/dict.h>
 #include <interp/logger.h>
 #include <interp/code_cache.h>
-#include <interp/signal.h>
 #include <interp/compress.h>
 
 /* thread thread stack: from 0x3000, each for 3 pages(8k + 4k)
@@ -52,7 +52,6 @@ struct thread_private_data {
 
 	struct tls_logger logger;
 	struct tls_code_cache_t code_cache;
-	struct tls_signal signal;
 	/* still need: head address of dict; head address of code cache */
 	/* tnr is thread identifier using in snitchaser */
 	uint32_t tid, pid;
@@ -60,8 +59,13 @@ struct thread_private_data {
 	/* we also need some code cache stuff */
 	/* when enter snitchaser's code, stack should be set to it */
 	struct thread_private_data * stack_top;
-	uint32_t sigmask[4];
-	int sig_block_level;
+
+	/* ------------ signal section begin ------------- */
+	/* sigprocmask, x86 has 64 signals */
+	uint32_t proc_sigmask[2];
+	struct k_sigaction sigactions[64];
+	/* ------------ signal section end --------------- */
+
 	struct list_head list;
 	/* the start position of argp, inited when loading and never changes */
 	uintptr_t argp_first;
@@ -69,10 +73,10 @@ struct thread_private_data {
 
 	/* access: *fs:(0x3000 - 4); stores: the base (lowest)
 	 * address of the TLS section */
-	void * tls_base;	
-
 	int current_syscall_nr;
 	struct thread_private_data * next_tpd;
+
+	void * tls_base;
 };
 
 extern struct list_head tpd_list_head;

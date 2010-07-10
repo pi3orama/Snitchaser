@@ -23,6 +23,8 @@
 #include <interp/logger.h>
 #include <interp/checkpoint.h>
 
+#include <interp/arch_signal.h>
+
 /* reexec reset the personality bit ADDR_NO_RANDOMIZE to make sure
  * the process' memory layout is idential */
 static void
@@ -92,6 +94,9 @@ xmain(volatile struct pusha_regs regs, uintptr_t unused1 ATTR(unused),
 	struct thread_private_data * tpd = get_tpd();
 	DEBUG(LOADER, "pid from tpd: %d; tid from tpd: %d\n",
 			tpd->pid, tpd->tid);
+
+	/* init arch signal */
+	arch_init_signal();
 
 	/* set argp_start */
 	tpd->argp_first = (uintptr_t)argp_first;

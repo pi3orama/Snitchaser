@@ -231,13 +231,11 @@ do_check_logger_buffer(void)
 	struct thread_private_data * tpd = get_tpd();
 	if (tpd->logger.log_buffer_current < tpd->logger.log_buffer_end)
 		return;
-	BLOCK_SIGNALS(tpd);
 	if (tpd->logger.log_buffer_current >= tpd->logger.log_buffer_end) {
 		/* we need check buffer again because signal may raise after
 		 * the previous check and before we block signal */
 		flush_logger_buffer(&tpd->logger);
 	}
-	UNBLOCK_SIGNALS(tpd);
 	return;
 }
 
@@ -271,9 +269,7 @@ append_buffer(void * data, size_t size)
 
 	/* we don't have enough space */
 	if (logger->log_buffer_current > logger->log_buffer_start) {
-		BLOCK_SIGNALS(tpd);
 		flush_logger_buffer(logger);
-		UNBLOCK_SIGNALS(tpd);
 	}
 
 	if (logger->log_buffer_current + size <

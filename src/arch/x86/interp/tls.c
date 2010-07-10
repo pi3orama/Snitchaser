@@ -11,7 +11,6 @@
 #include <common/list.h>
 #include <interp/code_cache.h>
 #include <interp/logger.h>
-#include <interp/signal.h>
 #include <interp/auxv.h>
 #include <interp/user_entry.h>
 /* struct user_desc */
@@ -181,8 +180,6 @@ build_tpd(struct thread_private_data * tpd)
 	init_code_cache(&tpd->code_cache);
 	/* init logger */
 	init_logger(&tpd->logger, tpd->pid, tpd->tid);
-	/* init signal section */
-	init_tls_signal(&tpd->signal);
 }
 
 void
@@ -230,7 +227,6 @@ unmap_tpd_pages(struct thread_private_data * tpd)
 {
 	clear_code_cache(&tpd->code_cache);
 	close_logger(&tpd->logger);
-	clear_tls_signal(&tpd->signal);
 }
 
 static void

@@ -7,7 +7,6 @@
 #include <common/defs.h>
 #include <common/debug.h>
 #include <interp/checkpoint.h>
-#include <interp/signal.h>
 #include <interp/mm.h>
 
 #include <xasm/syscall.h>

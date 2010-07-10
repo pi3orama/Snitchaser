@@ -127,7 +127,20 @@
 #endif
 
 #define GDBSERVER_NOTIFICATION	(SIGRTMAX - 1)
+#define SIGKILL_REPLACE		(SIGRTMAX - 2)
 
+/*
+ * unblock:
+ * SIGILL
+ * SIGFPE
+ * SIGKILL
+ * SIGSEGV
+ * SIGSTOP
+ * SIG31(SIGUNUSED)
+ * SIG32(SIGRTMIN)
+ * SIGKILL_REPLACE
+ * */
+#define RECORD_PROCMASK	{0x7ffbfa77, 0xdffffffe}
 
 #endif
 

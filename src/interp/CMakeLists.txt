@@ -18,8 +18,6 @@ SET(SRC
 	compress.c
 	checkpoint.h
 	checkpoint.c
-	signal.h
-	signal.c
 	user_entry.h
 	user_entry.c
 	replayer.c
