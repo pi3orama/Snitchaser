@@ -19,6 +19,7 @@
 #include <xasm/tls.h>
 #include <xasm/debug.h>
 #include <xasm/string.h>
+#include <xasm/processor.h>
 #include <asm_offsets.h>
 
 

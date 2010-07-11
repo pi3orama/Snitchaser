@@ -57,10 +57,11 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 
 	uintptr_t new_eip = sock_recv_ptr();
 
-	regs->eflags &= 0xffdfffff;
-	new_regs.eflags &= 0xffdfffff;
-
+	/* sysenter syscall doesn't portect eflags. see entry_32.S
+	 * kernel code */
+	regs->eflags = new_regs.eflags;
 	regs->eax = new_regs.eax;
+
 	if (memcmp(&new_regs, regs, sizeof(*regs)) != 0) {
 		WARNING(REPLAYER_TARGET,
 				"register set is different from original execution\n");

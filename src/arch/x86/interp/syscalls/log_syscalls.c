@@ -18,8 +18,8 @@
 static int
 pre_log_syscall(struct pusha_regs * regs)
 {
-	TRACE(LOG_SYSCALL, "begin syscall, eax=%d, ebx=%d\n",
-			regs->eax, regs->ebx);
+	TRACE(LOG_SYSCALL, "begin syscall, eax=%d, ebx=%d, eflags=0x%x\n",
+			regs->eax, regs->ebx, regs->eflags);
 
 	struct thread_private_data * tpd = get_tpd();
 
@@ -44,8 +44,8 @@ post_log_syscall(struct pusha_regs * regs)
 	struct thread_private_data * tpd = get_tpd();
 	int nr = tpd->current_syscall_nr;
 
-	TRACE(LOG_SYSCALL, "post syscall, eax=0x%x\n",
-			regs->eax);
+	TRACE(LOG_SYSCALL, "post syscall, eax=%d, ebx=%d, eflags=0x%x\n",
+			regs->eax, regs->ebx, regs->eflags);
 	/* put a 'no-signal-mark' */
 	append_buffer_u32(NO_SIGNAL_MARK);
 	/* put regs */
