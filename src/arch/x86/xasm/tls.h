@@ -62,7 +62,8 @@ struct thread_private_data {
 
 	/* ------------ signal section begin ------------- */
 	/* sigprocmask, x86 has 64 signals */
-	uint32_t proc_sigmask[2];
+	uint32_t block_sigmask[2];
+	uint32_t unblock_sigmask[2];
 	struct k_sigaction sigactions[64];
 	/* ------------ signal section end --------------- */
 

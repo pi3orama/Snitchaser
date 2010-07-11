@@ -4,6 +4,14 @@
  */
 
 #include <asm_offsets.h>
+#include <xasm/unistd.h>
+#include <xasm/signal_numbers.h>
+
+
+/* see signal_helper.h */
+#define SIG_BLOCK          0	/* for blocking signals */
+#define SIG_UNBLOCK        1	/* for unblocking signals */
+#define SIG_SETMASK        2	/* for setting the signal mask */
 
 .text
 
@@ -22,6 +30,16 @@ check_logger_buffer:
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_LOGGER_CHECK_BUFFER_RETURN
 
+
+#define RESET_SIGPROCMASK(type)	\
+	movl $__NR_rt_sigprocmask, %eax;		\
+	movl $SIG_SETMASK, %ebx;				\
+	movl $OFFSET_##type##_SIGMASK, %ecx;	\
+	addl %fs:OFFSET_TLS_BASE, %ecx;			\
+	movl $0, %edx;							\
+	movl $8, %esi;							\
+	int $0x80
+
 .globl int80_syscall_entry
 int80_syscall_entry:
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
@@ -33,6 +51,9 @@ int80_syscall_entry:
 	call pre_log_syscall_int80
 	cmp $0, %eax
 	jne 1f
+
+	/* reset sigprocmask here */
+	RESET_SIGPROCMASK(UNBLOCK)
 
 	popf
 	popa
@@ -46,6 +67,10 @@ int80_syscall_entry:
 	pushf
 	pushl $0x0202
 	popfl
+
+	RESET_SIGPROCMASK(BLOCK)
+
+
 	1: call post_log_syscall_int80
 	popf
 	popa
@@ -66,6 +91,8 @@ vdso_syscall_entry:
 	cmp $0, %eax
 	jne 1f
 
+	RESET_SIGPROCMASK(UNBLOCK)
+
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
@@ -78,6 +105,9 @@ vdso_syscall_entry:
 	pushf
 	pushl $0x0202
 	popfl
+
+	RESET_SIGPROCMASK(BLOCK)
+
 	1: call post_log_syscall_vdso
 	popf
 	popa

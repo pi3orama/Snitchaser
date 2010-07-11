@@ -60,8 +60,9 @@ arch_init_signal(void)
 		assert(err == 0);
 	}
 
+	memcpy(tpd->block_sigmask, mask, sizeof(mask));
 	int err = INTERNAL_SYSCALL_int80(rt_sigprocmask, 4,
-			SIG_SETMASK, mask, &(tpd->proc_sigmask),
+			SIG_SETMASK, mask, &(tpd->unblock_sigmask),
 			sizeof(k_sigset_t));
 	assert(err == 0);
 }

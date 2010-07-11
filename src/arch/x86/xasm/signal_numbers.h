@@ -140,7 +140,9 @@
  * SIG32(SIGRTMIN)
  * SIGKILL_REPLACE
  * */
-#define RECORD_PROCMASK	{0x7ffbfa77, 0xdffffffe}
+#define RECORD_PROCMASK_0 (0x7ffbfa77)
+#define RECORD_PROCMASK_1 (0xdffffffe)
+#define RECORD_PROCMASK	{RECORD_PROCMASK_0, RECORD_PROCMASK_1}
 
 #endif
 
