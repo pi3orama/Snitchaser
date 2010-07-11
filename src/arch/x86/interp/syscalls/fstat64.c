@@ -26,7 +26,7 @@
 DEF_HANDLER(fstat64)
 {
 	TRACE(LOG_SYSCALL, "fstat64\n");
-	int r = EAX_AS_INT;
+	int r = regs->eax;
 	if (r >= 0)
 		BUFFER((void*)(regs->ecx), sizeof(struct stat64));
 	return 0;

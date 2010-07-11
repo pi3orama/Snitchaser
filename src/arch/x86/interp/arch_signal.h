@@ -17,6 +17,9 @@ arch_set_sigmask(k_sigset_t old_set);
 void        
 arch_init_signal(void);
 
+void
+arch_wrapper_rt_sighandler(struct rt_sigframe * frame);
+
 #endif
 
 // vim:ts=4:sw=4

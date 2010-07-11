@@ -24,15 +24,11 @@ pre_log_syscall(struct pusha_regs * regs)
 	struct thread_private_data * tpd = get_tpd();
 
 	int nr = regs->eax;
-	tpd->current_syscall_nr = nr;
-
-	append_buffer_u32(SYSCALL_MARK);
-
-	struct pusha_regs real_regs = *regs;
-	real_regs.esp = (uintptr_t)(tpd->old_stack_top);
-	append_buffer(&real_regs, sizeof(real_regs));
-
 	assert((nr >= 0) && (nr < SYSCALL_TABLE_SZ));
+
+	tpd->current_syscall_nr = nr;
+	append_buffer_u32(SYSCALL_MARK);
+	append_buffer_u32(nr);
 
 	if (syscall_table[nr].pre_handler) {
 		return syscall_table[nr].pre_handler(regs);
@@ -52,6 +48,11 @@ post_log_syscall(struct pusha_regs * regs)
 			regs->eax);
 	/* put a 'no-signal-mark' */
 	append_buffer_u32(NO_SIGNAL_MARK);
+	/* put regs */
+	struct pusha_regs real_regs = *regs;
+	real_regs.esp = (uintptr_t)(tpd->old_stack_top);
+	append_buffer(&real_regs, sizeof(real_regs));
+
 	if (syscall_table[nr].post_handler) {
 		syscall_table[nr].post_handler(regs);
 		return;

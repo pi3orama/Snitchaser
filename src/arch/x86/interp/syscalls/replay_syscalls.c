@@ -41,47 +41,46 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 	/* we never return, so direct reset regs->esp */
 	struct thread_private_data * tpd = get_tpd();
 	regs->esp = (uintptr_t)(tpd->old_stack_top);
-	TRACE(REPLAYER_TARGET, "in do_replay_syscall_helper\n");
 
-	/* check regs */
-	struct pusha_regs ori_regs;
-	sock_recv(&ori_regs, sizeof(ori_regs));
+	int nr = sock_recv_int();
+	assert(nr == (int)regs->eax);
+
+	TRACE(REPLAYER_TARGET, "in replay syscall %d\n", nr);
 
 	/* clear bit 21 of eflags */
 	/* from intel manual: 
 	 * ID: Identification (bit 21). The ability of a program or procedure to
 	 * set or clear this flag indicates support for the CPUID instruction. */
 	/* bit 21 in eflags is random when program start */
+	struct pusha_regs new_regs;
+	sock_recv(&new_regs, sizeof(new_regs));
+
+	uintptr_t new_eip = sock_recv_ptr();
+
 	regs->eflags &= 0xffdfffff;
-	ori_regs.eflags &= 0xffdfffff;
+	new_regs.eflags &= 0xffdfffff;
 
-
-	if (memcmp(&ori_regs, regs, sizeof(*regs)) != 0) {
+	regs->eax = new_regs.eax;
+	if (memcmp(&new_regs, regs, sizeof(*regs)) != 0) {
 		WARNING(REPLAYER_TARGET,
 				"register set is different from original execution\n");
-		WARNING(REPLAYER_TARGET, "original regs:\n");
-		print_regs(&ori_regs);
+		WARNING(REPLAYER_TARGET,
+				"next eip is 0x%x\n", new_eip);
+		WARNING(REPLAYER_TARGET, "new regs:\n");
+		print_regs(&new_regs);
 		WARNING(REPLAYER_TARGET, "current regs:\n");
 		print_regs(regs);
-		*regs = ori_regs;
+		*regs = new_regs;
 	}
 
-	int nr = regs->eax;
-	assert((nr >= 0) && (nr < SYSCALL_TABLE_SZ));
-	TRACE(REPLAYER_TARGET, "replay syscall %d\n", nr);
-
 	if (syscall_table[nr].replay_handler) {
-
 
 		initiate_syscall_read();
 		syscall_table[nr].replay_handler(regs);
 		finish_syscall_read();
 
-		sock_send(regs, sizeof(*regs));
-
 		/* in interp/replayer.c */
 		notify_gdbserver();
-
 	} else {
 		FATAL(REPLAYER_TARGET, "doesn't support syscall %d\n", nr);
 	}

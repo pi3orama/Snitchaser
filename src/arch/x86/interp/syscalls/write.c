@@ -15,7 +15,6 @@
 DEF_HANDLER(write)
 {
 	TRACE(LOG_SYSCALL, "write\n");
-	EAX_AS_INT;
 	return 0;
 }
 #endif
@@ -24,7 +23,7 @@ DEF_HANDLER(write)
 DEF_HANDLER(write)
 {
 	TRACE(LOG_SYSCALL, "write\n");
-	int r = EAX_AS_INT;
+	int r = regs->eax;
 	if (r > 0) {
 		if ((regs->ebx == 1) || (regs->ebx == 2))
 			INTERNAL_SYSCALL_int80(write, 3,

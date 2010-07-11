@@ -274,6 +274,7 @@ ptrace_single_step(bool_t is_branch,
 
 static int
 SN_single_step(void);
+
 static int
 SN_cont(void)
 {
@@ -410,6 +411,42 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 		THROW_FATAL(EXP_FILE_CORRUPTED,
 				"mark should be 0x%x but actually 0x%x",
 				SYSCALL_MARK, mark);
+
+	int nr = read_int_from_log();
+	TRACE(XGDBSERVER, "this is syscall %d\n", nr);
+	if (psaved_regs->eax != nr)
+		THROW_FATAL(EXP_FILE_CORRUPTED,
+				"should be syscall %d, not %d", nr, (int)psaved_regs->eax);
+
+	/* check for no-signal-mark */
+	mark = read_u32_from_log();
+	if (mark != NO_SIGNAL_MARK)
+		THROW_FATAL(EXP_UNIMPLEMENTED, "syscall is broken by signal, "
+				"unimplemented");
+	TRACE(XGDBSERVER, "NO_SIGNAL_MARK ok\n");
+	
+	/* redirect eip */
+	ptrace_set_eip(SN_info.pid, (uintptr_t)(SN_info.syscall_helper));
+	target_continue();
+
+	/* see do_replay_syscall_helper in
+	 * arch/x86/interp/syscalls/replay_syscalls.c */
+	sock_send_int(nr);
+	struct pusha_regs new_regs;
+	read_log_full(&new_regs, sizeof(new_regs));
+	sock_send(&new_regs, sizeof(new_regs));
+	/* for debug use */
+	sock_send_ptr(new_eip);
+
+	syscall_read_cycle();
+
+	wait_for_replayer_sync();
+
+	/* restore registers */
+	arch_restore_registers(SN_info.pid, &new_regs, new_eip);
+	adjust_wait_result();
+
+#if 0
 	struct pusha_regs ori_regs, new_regs;
 	read_log_full(&ori_regs, sizeof(ori_regs));
 	TRACE(XGDBSERVER, "esp in ori_regs is 0x%x\n",
@@ -442,7 +479,7 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 	/* restore registers */
 	arch_restore_registers(SN_info.pid, &new_regs, new_eip);
 	adjust_wait_result();
-
+#endif
 	return 0;
 }
 

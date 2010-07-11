@@ -21,7 +21,7 @@ int
 post_mmap2(struct pusha_regs * regs)
 {
 	TRACE(LOG_SYSCALL, "post mmap2\n");
-	void * ptr = EAX_AS_PTR;
+	void * ptr = (void*)regs->eax;
 	if (PTR_CORRECT(ptr)) {
 		size_t len = regs->ecx;
 		BUFFER(ptr, len);
@@ -38,7 +38,7 @@ replay_mmap2(struct pusha_regs * regs)
 {
 	TRACE(LOG_SYSCALL, "replay mmap2\n");
 
-	void * ptr = EAX_AS_PTR;
+	void * ptr = (void*)regs->eax;
 	if (PTR_CORRECT(ptr)) {
 		/* mmap anon pages */
 

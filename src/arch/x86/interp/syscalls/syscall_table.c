@@ -32,17 +32,15 @@ trival_pre_handler(struct pusha_regs * regs ATTR_UNUSED)
 }
 
 int
-trival_post_handler(struct pusha_regs * regs)
+trival_post_handler(struct pusha_regs * regs ATTR_UNUSED)
 {
-	/* record eax */
-	append_buffer(&regs->eax, sizeof(regs->eax));
+	/* don't record anything */
 	return 0;
 }
 
 int
-trival_replay_handler(struct pusha_regs * regs)
+trival_replay_handler(struct pusha_regs * regs ATTR_UNUSED)
 {
-	read_syscall_data(&regs->eax, sizeof(regs->eax));
 	return 0;
 }
 
