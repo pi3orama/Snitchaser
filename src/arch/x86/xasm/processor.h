@@ -1,6 +1,6 @@
 #ifndef __X86_PROCESSOR_H
 #define __X86_PROCESSOR_H
-#include <stdint.h>
+#include <xasm/stdint.h>
 /*  struct user_regs_struct */
 #include <common/defs.h>
 #include <sys/user.h>

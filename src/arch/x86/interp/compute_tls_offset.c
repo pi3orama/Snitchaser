@@ -36,6 +36,7 @@ compute(void)
 
 	PRINT(block_sigmask, BLOCK_SIGMASK);
 	PRINT(unblock_sigmask, UNBLOCK_SIGMASK);
+	PRINT(current_sigmask, CURRENT_SIGMASK);
 	PRINT(sigactions, SIGACTIONS);
 
 	PRINT(logger.check_logger_buffer, LOGGER_CHECK_LOGGER_BUFFER);

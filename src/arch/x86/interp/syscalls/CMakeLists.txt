@@ -15,7 +15,7 @@ SET(SYSCALLS
 	write.c
 	exit_group.c
 	exit.c
-	sigprocmask.c
+	rt_sigprocmask.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

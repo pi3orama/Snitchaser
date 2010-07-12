@@ -11,7 +11,11 @@
 #include <common/list.h>
 #include <interp/dict.h>
 
-#include <stdint.h>
+#ifndef __KERNEL__
+# include <stdint.h>
+#else
+# include <linux/types.h>
+#endif
 
 #define BE_CONDITIONAL		(1)
 #define BE_UNCONDITIONAL	(0)

@@ -64,6 +64,10 @@ struct thread_private_data {
 	/* sigprocmask, x86 has 64 signals */
 	uint32_t block_sigmask[2];
 	uint32_t unblock_sigmask[2];
+	/* used for processing sigprocmask and rt_sigprocmask.
+	 * see logger.S -- BLOCK_SIGPROCMASK and processing of
+	 * those syscalls */
+	uint32_t current_sigmask[2];
 	struct k_sigaction sigactions[64];
 	/* ------------ signal section end --------------- */
 

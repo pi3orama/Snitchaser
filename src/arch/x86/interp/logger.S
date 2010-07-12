@@ -31,7 +31,12 @@ check_logger_buffer:
 	jmpl *%fs:OFFSET_LOGGER_CHECK_BUFFER_RETURN
 
 
-#define RESET_SIGPROCMASK(type)	\
+#define SET_EDX_0	movl $0, %edx
+#define SET_EDX_CURRENT_SIGMASK	 \
+	movl $OFFSET_CURRENT_SIGMASK, %edx; \
+	addl %fs:OFFSET_TLS_BASE, %edx;
+
+#define RESET_SIGPROCMASK(type, setoset)	\
 	pushf;									\
 	subl $20, %esp;							\
 	movl %eax, (%esp);						\
@@ -41,9 +46,9 @@ check_logger_buffer:
 	movl %esi, 16(%esp);					\
 	movl $__NR_rt_sigprocmask, %eax;		\
 	movl $SIG_SETMASK, %ebx;				\
-	movl $OFFSET_##type##_SIGMASK, %ecx;		\
+	movl $OFFSET_##type##_SIGMASK, %ecx;	\
 	addl %fs:OFFSET_TLS_BASE, %ecx;			\
-	movl $0, %edx;							\
+	setoset;								\
 	movl $8, %esi;							\
 	int $0x80;								\
 	movl 16(%esp), %esi;					\
@@ -53,6 +58,9 @@ check_logger_buffer:
 	movl (%esp), %eax;						\
 	addl $20, %esp;							\
 	popf
+
+#define UNBLOCK_SIGPROCMASK RESET_SIGPROCMASK(UNBLOCK, SET_EDX_0)
+#define BLOCK_SIGPROCMASK RESET_SIGPROCMASK(BLOCK, SET_EDX_CURRENT_SIGMASK)
 
 .globl int80_syscall_entry
 int80_syscall_entry:
@@ -71,9 +79,9 @@ int80_syscall_entry:
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 
 	/* reset sigprocmask here */
-	RESET_SIGPROCMASK(UNBLOCK)
+	UNBLOCK_SIGPROCMASK
 	int $0x80
-	RESET_SIGPROCMASK(BLOCK)
+	BLOCK_SIGPROCMASK
 
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
 	movl %fs:OFFSET_STACK_TOP, %esp
@@ -108,9 +116,9 @@ vdso_syscall_entry:
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 
-	RESET_SIGPROCMASK(UNBLOCK)
+	UNBLOCK_SIGPROCMASK
 	call *%fs:OFFSET_REAL_VDSO_SYSCALL_ENTRY
-	RESET_SIGPROCMASK(BLOCK)
+	BLOCK_SIGPROCMASK
 
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
 	movl %fs:OFFSET_STACK_TOP, %esp

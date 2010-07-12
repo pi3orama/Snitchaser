@@ -5,7 +5,11 @@
 # define __always_inline __attribute__((always_inline, unused))
 #endif
 
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
 typedef unsigned int size_t;
+#endif
 
 /* Let gcc decide wether to inline or use the out of line functions */
 

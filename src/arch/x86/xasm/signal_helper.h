@@ -20,6 +20,9 @@
 #endif
 #define __ARCH_SI_BAND_T long
 
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
 typedef int		__kernel_pid_t;
 typedef long		__kernel_clock_t;
 typedef int		__kernel_timer_t;
@@ -29,8 +32,15 @@ typedef unsigned int	__kernel_gid32_t;
 
 typedef __kernel_uid32_t	uid_t;
 typedef __kernel_gid32_t	gid_t;
+typedef int pid_t;
+typedef unsigned int	__kernel_size_t;
+typedef __kernel_size_t		size_t;
 typedef __kernel_clock_t	clock_t;
+
+#endif
+
 typedef __kernel_timer_t	k_timer_t;
+
 
 typedef union sigval {
 	int sival_int;
@@ -74,7 +84,6 @@ struct _fpstate {
 	unsigned long	padding[56];
 };
 
-typedef int pid_t;
 
 typedef struct siginfo {
 	int si_signo;
@@ -155,9 +164,6 @@ struct sigcontext {
 	unsigned long oldmask;
 	unsigned long cr2;
 };
-
-typedef unsigned int	__kernel_size_t;
-typedef __kernel_size_t		size_t;
 
 typedef struct sigaltstack {
 	void *ss_sp;

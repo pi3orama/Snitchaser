@@ -10,6 +10,7 @@ def_handler(mmap2)
 def_handler(write)
 def_complex_handler(exit_group)
 def_complex_handler(exit)
+def_handler(rt_sigprocmask)
 
 // vim:ts=4:sw=4
 
