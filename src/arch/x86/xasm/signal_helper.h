@@ -292,6 +292,40 @@ static inline void sigdelsetmask(k_sigset_t *set, unsigned long mask)
 # define sigmask(sig)	(1UL << ((sig) - 1))
 #endif
 
+
+#ifndef SA_NOCLDSTOP
+# define SA_NOCLDSTOP	0x00000001u
+#endif
+#ifndef SA_NOCLDWAIT
+# define SA_NOCLDWAIT	0x00000002u
+#endif
+#ifndef SA_SIGINFO
+# define SA_SIGINFO	0x00000004u
+#endif
+#ifndef SA_ONSTACK
+# define SA_ONSTACK	0x08000000u
+#endif
+#ifndef SA_RESTART
+# define SA_RESTART	0x10000000u
+#endif
+#ifndef SA_NODEFER
+# define SA_NODEFER	0x40000000u
+#endif
+#ifndef SA_RESETHAND
+# define SA_RESETHAND	0x80000000u
+#endif
+
+#ifndef SA_NOMASK
+# define SA_NOMASK	SA_NODEFER
+#endif
+#ifndef SA_ONESHOT
+# define SA_ONESHOT	SA_RESETHAND
+#endif
+
+#ifndef SA_RESTORER
+# define SA_RESTORER	0x04000000
+#endif
+
 #endif
 
 // vim:ts=4:sw=4

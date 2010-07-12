@@ -1,6 +1,7 @@
 /* 
- * rt_sigprocmask.c
+ * sigprocmask.c
  * by WN @ Jun. 01, 2010
+ * nearly same as rt_sigprocmask
  */
 
 #include "syscall_handler.h"
@@ -14,10 +15,11 @@
 #endif
 
 #define SIGSET_SZ	(2 * sizeof(uint32_t))
+#define OLD_SIGSET_SZ	(sizeof(uint32_t))
 
 #ifdef POST_LIBRARY
 int
-post_rt_sigprocmask(struct pusha_regs * regs)
+post_sigprocmask(struct pusha_regs * regs)
 {
 	int retval = regs->eax;
 	int how = regs->ebx;
@@ -37,8 +39,7 @@ post_rt_sigprocmask(struct pusha_regs * regs)
 
 		/* oset should be set to old unblock_sigmask */
 		if (oset != NULL)
-			assert(memcmp(oset, tpd->unblock_sigmask,
-						SIGSET_SZ) == 0);
+			assert(*oset == tpd->unblock_sigmask[0]);
 
 		/* unblock_sigmask should have been changed by this syscall,
 		 * the new signal mask should have been stored into
@@ -48,7 +49,7 @@ post_rt_sigprocmask(struct pusha_regs * regs)
 
 		/* store oset */
 		if (oset != NULL)
-			BUFFER(oset, SIGSET_SZ);
+			BUFFER(oset, OLD_SIGSET_SZ);
 	}
 	return 0;
 }
@@ -56,14 +57,14 @@ post_rt_sigprocmask(struct pusha_regs * regs)
 
 #ifdef REPLAY_LIBRARY
 int
-replay_rt_sigprocmask(struct pusha_regs * regs)
+replay_sigprocmask(struct pusha_regs * regs)
 {
 	int retval = regs->eax;
 	int how = regs->ebx;
 	uint32_t * oset = (uint32_t *)(regs->edx);
 	if (retval >= 0) {
 		if (oset != NULL)
-			BUFFER(oset, SIGSET_SZ);
+			BUFFER(oset, OLD_SIGSET_SZ);
 	}
 	return 0;
 }

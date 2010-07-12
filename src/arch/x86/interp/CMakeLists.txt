@@ -26,6 +26,7 @@ SET(SRC
 	arch_replayer.c
 	arch_replayer.h
 
+	arch_signal.S
 	arch_signal.c
 	arch_signal.h
 	)

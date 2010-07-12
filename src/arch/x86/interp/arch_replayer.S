@@ -1,11 +1,12 @@
 /*
- * replayer.S
+ * arch_replayer.S
  * by WN @ Jul. 01, 2010
  * entries for replayer
  */
 
 #include <asm_offsets.h>
 
+.text
 /*
  * below entries are for gdbserver:
  * gdbserver set OFFSET_TARGET and redirect code to it.
