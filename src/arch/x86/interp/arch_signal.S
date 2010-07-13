@@ -19,10 +19,25 @@ arch_wrapper_rt_sighandler:
 	pushl $0x0202
 	popfl
 	call do_arch_wrapper_rt_sighandler
+	cmpl $1, %eax
+	je 1f
+	cmpl $2, %eax
+	je signal_terminate
 	popfl
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_REAL_BRANCH
+	/* if do_arch return non-zero, sigreturn directly */
+	1:
+	/* call sigreturn */
+	popfl
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	addl $4, %esp
+	movl $0xad, %eax
+	int $0x80
+	nop
+
 
 arch_wrapper_sighandler:
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
@@ -32,10 +47,26 @@ arch_wrapper_sighandler:
 	pushl $0x0202
 	popfl
 	call do_arch_wrapper_sighandler
+	cmpl $1, %eax
+	je 1f
+	cmpl $2, %eax
+	je signal_terminate
 	popfl
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_REAL_BRANCH
+	1:
+	popfl
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	addl $4, %esp
+	movl $0x77, %eax
+	int $0x80
+	nop
+
+signal_terminate:
+	movl $1, %eax
+	int $0x80
 
 arch_wrapper_rt_sigreturn:
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP

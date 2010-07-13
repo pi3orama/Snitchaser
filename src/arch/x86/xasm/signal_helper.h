@@ -174,6 +174,11 @@ typedef struct sigaltstack {
 #define K_NSIG	(64)
 #define _NSIG_WORDS	(2)
 
+#ifdef __i386__
+# define _NSIG_BPW	32
+#else
+# define _NSIG_BPW	64
+#endif
 typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } k_sigset_t;
@@ -187,6 +192,16 @@ struct ucontext {
 	struct sigcontext uc_mcontext;
 	k_sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
+
+static inline void
+k_sigaddset(k_sigset_t *set, int _sig)
+{
+	unsigned long sig = _sig - 1;
+	if (_NSIG_WORDS == 1)
+		set->sig[0] |= 1UL << sig;
+	else
+		set->sig[sig / _NSIG_BPW] |= 1UL << (sig % _NSIG_BPW);
+}
 
 struct sigframe
 {
@@ -228,6 +243,16 @@ struct k_sigaction {
 	k_sigset_t sa_mask;		/* mask last for extensibility */
 };
 
+#ifndef SIG_DFL
+# define SIG_DFL	((void*)0)	/* default signal handling */
+#endif
+#ifndef SIG_IGN
+# define SIG_IGN	((void*)1)	/* ignore signal */
+#endif
+#ifndef SIG_ERR
+# define SIG_ERR	((void*)-1)	/* error return from signal */
+#endif
+
 #define _SIG_SET_BINOP(name, op)					\
 static inline void name(k_sigset_t *r, const k_sigset_t *a, const k_sigset_t *b) \
 {									\
@@ -259,11 +284,6 @@ _SIG_SET_BINOP(sigandsets, _sig_and)
 #define _sig_nand(x,y)	((x) & ~(y))
 _SIG_SET_BINOP(signandsets, _sig_nand)
 
-#ifdef __i386__
-# define _NSIG_BPW	32
-#else
-# define _NSIG_BPW	64
-#endif
 static inline void sigaddset(k_sigset_t *set, int _sig)
 {
 	unsigned long sig = _sig - 1;

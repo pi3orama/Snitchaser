@@ -11,6 +11,9 @@
 #include <xasm/signal_numbers.h>
 #include <xasm/tls.h>
 #include <xasm/string.h>
+#include <xasm/marks.h>
+
+#include <interp/logger.h>
 
 k_sigset_t
 arch_replay_mask_signals(void)
@@ -94,16 +97,121 @@ arch_init_signal(void)
 
 }
 
-void
-do_arch_wrapper_sighandler(void)
+static void
+signal_terminate(int num, struct thread_private_data * tpd)
 {
-	FATAL(SIGNAL, "unimplemented\n");
+
+	WARNING(SIGNAL, "Never tested code\n");
+	WARNING(SIGNAL, "Need signaled eip\n");
+
+	append_buffer_u32(SIGNAL_MARK);
+	append_buffer_int(num);
+	append_buffer_u32(SIGNAL_TERMINATE);
+	flush_logger();
+
+	/* we needn't clean tls and code cache because all threads
+	 * will be killed by this signal. */
+
+	/* raise the signal again to kill myself: */
+	/* reinstall sigactions */
+	struct k_sigaction act;
+	/* DFL action should be 'kill'. */
+	/* those signal never terminate process */
+	if ((num == SIGSTOP) ||
+			(num == SIGTSTP) ||
+			(num == SIGTTIN) ||
+			(num == SIGTTOU) ||
+			(num == SIGURG) ||
+			(num == SIGWINCH) ||
+			(num == SIGCHLD))
+		FATAL(SIGNAL, "wrong signal %d terminates process\n", num);
+
+	memset(&act, '\0', sizeof(act));
+	act.sa_handler = SIG_DFL;
+	act.sa_flags = 0;
+
+	int err = INTERNAL_SYSCALL_int80(rt_sigaction, 4,
+			num, &act, NULL, sizeof(k_sigset_t));
+	assert(err == 0);
+
+	/* block all signals */
+	k_sigset_t set;
+	memset(&set, (char)0x0, sizeof(set));
+
+	/* unblock this signal */
+	k_sigaddset(&set, num);
+
+	err = INTERNAL_SYSCALL_int80(rt_sigprocmask, 4,
+			SIG_UNBLOCK, &set, NULL, sizeof(set));
+	assert(err == 0);
+
+	/* raise the signal again */
+	WARNING(SIGNAL, "will kill the whole thread group...\n");
+
+	err = INTERNAL_SYSCALL_int80(kill, 2, tpd->pid, num);
+	FATAL(SIGNAL, "We shouldn't get here!!!\n");
+	INTERNAL_SYSCALL_int80(exit, 1, -1);
+	/* never return */
 }
 
-void
+static void
+signal_stop(int num, struct thread_private_data * tpd)
+{
+	WARNING(SIGNAL, "stopped by signal %d\n", num);
+	/* kill itself by an SIGSTOP: */
+}
+
+/* if return 1, sigreturn (or rt_sigreturn) */
+/* if return 2, terminate */
+static int
+common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
+		struct thread_private_data * tpd)
+{
+	WARNING(SIGNAL, "signal %d: never tested code\n", num);
+	/* check whether to terminate */
+	struct k_sigaction * act = &(tpd->sigactions[num - 1]);
+
+	if (act->sa_handler == SIG_IGN) {
+		/* ignore actions:  */
+		if ((num == 32) || (num == 33))
+			signal_terminate(num, tpd);
+		/* else: ignore */
+		return 1;
+	} else if (act->sa_handler == SIG_DFL) {
+		if ((num == SIGSTOP) ||
+				(num == SIGTSTP) ||
+				(num == SIGTTIN) ||
+				(num == SIGTTOU)) {
+			signal_stop(num, tpd);
+			return 1;
+		} else if ((num == SIGURG) ||
+				(num == SIGWINCH) ||
+				(num == SIGCHLD)) {
+			return 1;
+		} else {
+			signal_terminate(num, tpd);
+		}
+	} else {
+		FATAL(SIGNAL, "unimplemented\n");
+	}
+	return 0;
+}
+
+int
+do_arch_wrapper_sighandler(void)
+{
+	struct thread_private_data * tpd = get_tpd();
+	struct sigframe * frame = tpd->old_stack_top;
+	return common_wrapper_sighandler(frame->sig, frame, sizeof(*frame), tpd);
+}
+
+int
 do_arch_wrapper_rt_sighandler(void)
 {
-	FATAL(SIGNAL, "unimplemented\n");
+	struct thread_private_data * tpd = get_tpd();
+	struct rt_sigframe * rt_frame = tpd->old_stack_top;
+	return common_wrapper_sighandler(rt_frame->sig, rt_frame,
+			sizeof(*rt_frame), tpd);
 }
 
 void

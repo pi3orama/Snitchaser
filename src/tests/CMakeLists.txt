@@ -35,14 +35,14 @@ SET_PROPERTY(TARGET test_flush_logger
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
 	)
 
-SET(CAN_USE_ASSEMBLER TRUE)
-ENABLE_LANGUAGE(ASM-S)
-ADD_EXECUTABLE(test_syscall_asm test_syscall_asm.S)
-
-SET_PROPERTY(TARGET test_syscall_asm
-	APPEND
-	PROPERTY LINK_FLAGS "--dynamic-linker=${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
-	)
+## SET(CAN_USE_ASSEMBLER TRUE)
+## ENABLE_LANGUAGE(ASM-S)
+## ADD_EXECUTABLE(test_syscall_asm test_syscall_asm.S)
+## 
+## SET_PROPERTY(TARGET test_syscall_asm
+## 	APPEND
+## 	PROPERTY LINK_FLAGS "--dynamic-linker=${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+## 	)
 
 ENDIF(BUILD_TESTS)
 

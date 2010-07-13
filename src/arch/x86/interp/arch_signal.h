@@ -31,10 +31,10 @@ void
 arch_wrapper_sigreturn(void);
 
 /* defined in arch_signal.c */
-void
+int
 do_arch_wrapper_rt_sighandler(void);
 
-void
+int
 do_arch_wrapper_sighandler(void);
 
 void
