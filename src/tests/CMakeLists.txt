@@ -6,6 +6,8 @@ SET(tests
 	test_normal_linker
 	test_flush_logger
 	test_segfault
+	test_getpid
+	test_sigign
 	)
 
 build_tests("${tests}" "")
@@ -35,6 +37,15 @@ SET_PROPERTY(TARGET test_flush_logger
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
 	)
 
+SET_PROPERTY(TARGET test_getpid
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
+
+SET_PROPERTY(TARGET test_sigign
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
 ## SET(CAN_USE_ASSEMBLER TRUE)
 ## ENABLE_LANGUAGE(ASM-S)
 ## ADD_EXECUTABLE(test_syscall_asm test_syscall_asm.S)

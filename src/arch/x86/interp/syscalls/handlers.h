@@ -12,6 +12,7 @@ def_complex_handler(exit_group)
 def_complex_handler(exit)
 def_handler(rt_sigprocmask)
 def_handler(sigprocmask)
+def_trival_handler(getpid)
 //def_complex_handler(rt_sigaction)
 
 // vim:ts=4:sw=4

@@ -98,7 +98,7 @@ arch_init_signal(void)
 }
 
 static void
-signal_terminate(int num, struct thread_private_data * tpd)
+signal_terminate(int num, struct thread_private_data * tpd, void * addr)
 {
 	WARNING(SIGNAL, "Never tested code\n");
 	WARNING(SIGNAL, "Need signaled eip\n");
@@ -107,6 +107,7 @@ signal_terminate(int num, struct thread_private_data * tpd)
 	flush_logger();
 	append_buffer_u32(SIGNAL_MARK);
 	append_buffer_int(num);
+	append_buffer_ptr(addr);
 	append_buffer_u32(SIGNAL_TERMINATE);
 	flush_logger();
 
@@ -170,15 +171,13 @@ static int
 common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 		struct thread_private_data * tpd, void * ori_addr)
 {
-	WARNING(SIGNAL, "signal %d at %p: never tested code\n",
-			num, ori_addr);
 	/* check whether to terminate */
 	struct k_sigaction * act = &(tpd->sigactions[num - 1]);
 
 	if (act->sa_handler == SIG_IGN) {
 		/* ignore actions:  */
 		if ((num == 32) || (num == 33))
-			signal_terminate(num, tpd);
+			signal_terminate(num, tpd, ori_addr);
 		/* else: sigreturn */
 		return 1;
 	} else if (act->sa_handler == SIG_DFL) {
@@ -193,7 +192,7 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 				(num == SIGCHLD)) {
 			return 1;
 		} else {
-			signal_terminate(num, tpd);
+			signal_terminate(num, tpd, ori_addr);
 		}
 	} else {
 		FATAL(SIGNAL, "unimplemented\n");
