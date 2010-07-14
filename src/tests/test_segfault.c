@@ -5,6 +5,9 @@
 
 int main()
 {
+
+	printf("Wow\n");
+
 	int * ptr = (void*)(0x1234);
 	*ptr = 10;
 

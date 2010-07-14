@@ -103,7 +103,9 @@ signal_terminate(int num, struct thread_private_data * tpd)
 
 	WARNING(SIGNAL, "Never tested code\n");
 	WARNING(SIGNAL, "Need signaled eip\n");
+	WARNING(SIGNAL, "terminated by signaled %d\n", num);
 
+	flush_logger();
 	append_buffer_u32(SIGNAL_MARK);
 	append_buffer_int(num);
 	append_buffer_u32(SIGNAL_TERMINATE);
@@ -159,6 +161,8 @@ signal_stop(int num, struct thread_private_data * tpd)
 {
 	WARNING(SIGNAL, "stopped by signal %d\n", num);
 	/* kill itself by an SIGSTOP: */
+	int err = INTERNAL_SYSCALL_int80(kill, 2, tpd->pid, SIGSTOP);
+	assert(err == 0);
 }
 
 /* if return 1, sigreturn (or rt_sigreturn) */

@@ -243,7 +243,7 @@ void
 flush_logger(void)
 {
 	struct thread_private_data * tpd = get_tpd();
-	do_flush_logger_buffer(&tpd->logger);
+	flush_logger_buffer(&tpd->logger);
 }
 
 void
