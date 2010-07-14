@@ -33,6 +33,8 @@ arch_wrapper_rt_sighandler:
 	popfl
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	/* see vdso code, __kernel_rt_sigreturn is different
+	 * from __kernel_sigreturn */
 	addl $4, %esp
 	movl $0xad, %eax
 	int $0x80
@@ -59,7 +61,8 @@ arch_wrapper_sighandler:
 	popfl
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
-	addl $4, %esp
+	/* see vdso code */
+	addl $8, %esp
 	movl $0x77, %eax
 	int $0x80
 	nop
