@@ -22,8 +22,6 @@ struct SN_info {
 	int ori_tnr;
 	void * stack_base;
 	/* function pointers */
-	void * patch_block_func;
-	void * unpatch_block_func;
 	void * is_branch_inst;
 	void * replay_nop;
 	void * syscall_helper;

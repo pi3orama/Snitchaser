@@ -554,35 +554,10 @@ SN_ptrace_cont(enum __ptrace_request req, pid_t pid,
 	if (pid != SN_info.pid)
 		return ptrace(req, pid, addr, data);
 
-//	ptrace_get_regset(SN_info.pid, &saved_urs);
-
 	if (req == PTRACE_SINGLESTEP)
 		return SN_single_step();
 	else
 		return SN_cont();
-
-#if 0
-	/* get current eip, put it into OFFSET_TARGET, then redirect
-	 * code into SN_info.patch_block_func */
-
-	uintptr_t ptr = read_ptr_from_log();
-	if (ptr < 0x1000) {
-		/* this is system call */
-		THROW_FATAL(EXP_UNIMPLEMENTED, "system call %d\n", ptr);
-	}
-
-	if (ptr > 0xc0000000) {
-		/* this is mark */
-		THROW_FATAL(EXP_UNIMPLEMENTED, "mark 0x%x\n", ptr);
-	}
-
-	TRACE(XGDBSERVER, "next branch target is 0x%x\n", ptr);
-
-	redirect_
-
-#endif
-	THROW_FATAL(EXP_UNIMPLEMENTED, "xxxxx");
-	return ptrace(req, pid, addr, data);
 }
 
 // vim:ts=4:sw=4

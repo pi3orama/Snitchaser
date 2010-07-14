@@ -374,8 +374,6 @@ wait_for_attach(void)
 	info.stack_base = stack_base;
 
 	/* defined in arch_replayer.S/h */
-	info.patch_block_func = &replay_patch_block;
-	info.unpatch_block_func = &replay_unpatch_block;
 	info.is_branch_inst = &replay_is_branch_inst;
 	info.replay_nop = &replay_nop;
 	info.syscall_helper = &replay_syscall_helper;
