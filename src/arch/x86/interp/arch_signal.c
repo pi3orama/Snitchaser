@@ -100,7 +100,6 @@ arch_init_signal(void)
 static void
 signal_terminate(int num, struct thread_private_data * tpd)
 {
-
 	WARNING(SIGNAL, "Never tested code\n");
 	WARNING(SIGNAL, "Need signaled eip\n");
 	WARNING(SIGNAL, "terminated by signaled %d\n", num);
@@ -169,9 +168,10 @@ signal_stop(int num, struct thread_private_data * tpd)
 /* if return 2, terminate */
 static int
 common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
-		struct thread_private_data * tpd)
+		struct thread_private_data * tpd, void * ori_addr)
 {
-	WARNING(SIGNAL, "signal %d: never tested code\n", num);
+	WARNING(SIGNAL, "signal %d at %p: never tested code\n",
+			num, ori_addr);
 	/* check whether to terminate */
 	struct k_sigaction * act = &(tpd->sigactions[num - 1]);
 
@@ -179,7 +179,7 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 		/* ignore actions:  */
 		if ((num == 32) || (num == 33))
 			signal_terminate(num, tpd);
-		/* else: ignore */
+		/* else: sigreturn */
 		return 1;
 	} else if (act->sa_handler == SIG_DFL) {
 		if ((num == SIGSTOP) ||
@@ -201,12 +201,31 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 	return 0;
 }
 
+static void *
+get_ori_address(struct code_block_t * blk, void * _addr)
+{
+	uintptr_t addr = (uintptr_t)(_addr);
+	uintptr_t block_start = (uintptr_t)(blk->entry);
+	/* 11 byte is movl $0xffffffff, %fs:OFFSET_CODE_CACHE_CURRENT_BLOCK,
+	 * see branch_template.S */
+	uintptr_t compiled_code_start = (uintptr_t)(blk->__code) + 11;
+	uintptr_t compiled_code_end = (uintptr_t)(blk->ori_code_end);
+
+	if ((addr <= compiled_code_end) && (addr >= compiled_code_start))
+		return (void*)(block_start + (_addr - compiled_code_start));
+	return (void*)(block_start + (compiled_code_end - compiled_code_start));
+}
+
 int
 do_arch_wrapper_sighandler(void)
 {
 	struct thread_private_data * tpd = get_tpd();
 	struct sigframe * frame = tpd->old_stack_top;
-	return common_wrapper_sighandler(frame->sig, frame, sizeof(*frame), tpd);
+	void * eip = (void*)(frame->sc.ip);
+	void * ori_addr = get_ori_address(tpd->code_cache.current_block,
+			(void *)eip);
+	return common_wrapper_sighandler(frame->sig, frame,
+			sizeof(*frame), tpd, ori_addr);
 }
 
 int
@@ -214,8 +233,11 @@ do_arch_wrapper_rt_sighandler(void)
 {
 	struct thread_private_data * tpd = get_tpd();
 	struct rt_sigframe * rt_frame = tpd->old_stack_top;
+	void * eip = (void*)rt_frame->uc.uc_mcontext.ip;
+	void * ori_addr = get_ori_address(tpd->code_cache.current_block,
+			(void *)eip);
 	return common_wrapper_sighandler(rt_frame->sig, rt_frame,
-			sizeof(*rt_frame), tpd);
+			sizeof(*rt_frame), tpd, ori_addr);
 }
 
 void

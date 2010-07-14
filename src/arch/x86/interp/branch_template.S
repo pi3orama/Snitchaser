@@ -16,6 +16,9 @@
  * address of compiled code, signal handler can determine
  * the exact instruction before which signal arrives.
  */
+/* see get_ori_address in  arch_signal.c, it relise on
+ * below instruction
+ */
 .globl __set_current_block_template_start
 .globl __set_current_block_template_end
 __set_current_block_template_start:
