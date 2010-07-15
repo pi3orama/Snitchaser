@@ -272,6 +272,8 @@ ptrace_single_step(bool_t is_branch,
 	return ret;
 }
 
+
+
 static int
 SN_single_step(void);
 
@@ -303,7 +305,9 @@ SN_cont(void)
 	for (;;) {
 		/* readahead and check mark */
 		uintptr_t ptr = readahead_log_ptr();
-		if ((!IS_VALID_PTR(ptr)) && (ptr != SYSCALL_MARK)) {
+		/* 0xffffffff means the end of log */
+		if ((!IS_VALID_PTR(ptr)) && (ptr != SYSCALL_MARK) && (ptr != 0xffffffff)) {
+
 			THROW_FATAL(EXP_UNIMPLEMENTED, "read from log, next mark is 0x%x",
 					ptr);
 			/* NOTICE: a signal may arise at another block! for example:

@@ -9,6 +9,7 @@ SET(tests
 	test_getpid
 	test_sigign
 	test_sleep
+	test_sigaction
 	)
 
 build_tests("${tests}" "")
@@ -49,6 +50,11 @@ SET_PROPERTY(TARGET test_sigign
 	)
 
 SET_PROPERTY(TARGET test_sleep
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
+
+SET_PROPERTY(TARGET test_sigaction
 	APPEND
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
 	)

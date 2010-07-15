@@ -54,8 +54,17 @@ read_ptr_from_log(void)
 }
 #endif
 
-uintptr_t
-readahead_log_ptr(void);
+bool_t
+readahead_log(void * data, size_t sz);
+
+inline static uintptr_t
+readahead_log_ptr(void)
+{
+	uintptr_t ptr;
+	if (readahead_log(&ptr, sizeof(ptr)))
+		return ptr;
+	return 0xffffffff;
+}
 
 #endif
 

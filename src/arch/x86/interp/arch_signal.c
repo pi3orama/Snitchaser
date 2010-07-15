@@ -100,15 +100,19 @@ arch_init_signal(void)
 static void
 signal_terminate(int num, struct thread_private_data * tpd, void * addr)
 {
-	WARNING(SIGNAL, "Never tested code\n");
-	WARNING(SIGNAL, "Need signaled eip\n");
 	WARNING(SIGNAL, "terminated by signaled %d\n", num);
 
-	flush_logger();
-	append_buffer_u32(SIGNAL_MARK);
-	append_buffer_int(num);
-	append_buffer_ptr(addr);
-	append_buffer_u32(SIGNAL_TERMINATE);
+	/* see the code of flush logger, we must write this mark by ONCE
+	 * to prevent potential log flush */
+	struct {
+		uint32_t signal_mark;
+		int signum;
+		void * addr;
+		uint32_t terminal_mark;
+	} mark = {
+		SIGNAL_MARK, num, addr, SIGNAL_TERMINATE
+	};
+	append_buffer(&mark, sizeof(mark));
 	flush_logger();
 
 	/* we needn't clean tls and code cache because all threads

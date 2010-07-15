@@ -201,38 +201,47 @@ read_log_full(void * buf, size_t size)
 	}
 }
 
-uintptr_t
-readahead_log_ptr(void)
+/* 
+ * if return false, the log has end
+ */
+bool_t
+readahead_log(void * data, size_t sz)
 {
 	assert(log_fp != NULL);
-	if (uncomp_data_buffer_ptr + sizeof(uintptr_t) <= uncomp_end)
-		return *((uintptr_t *)(uncomp_data_buffer_ptr));
+	assert(data != NULL);
+	if (sz == 0)
+		return TRUE;
+
+	if (uncomp_data_buffer_ptr + sz <= uncomp_end) {
+		memcpy(data, uncomp_data_buffer_ptr, sz);
+		return TRUE;
+	}
 
 	if (uncomp_data_buffer_ptr != uncomp_end)
 		THROW_FATAL(EXP_LOG_CORRUPTED,
-				"unable to readahead a full uintptr_t: %d bytes left",
-				uncomp_end - uncomp_data_buffer_ptr);
+				"unable to readahead %d bytes: %d bytes left",
+				sz, uncomp_end - uncomp_data_buffer_ptr);
 
-	uintptr_t res = 0xffffffff;
+	bool_t retval = TRUE;
 	define_exp(exp);
 	TRY(exp) {
 		next_region();
 		assert(uncomp_data_buffer_ptr != NULL);
-		if (uncomp_data_buffer_sz < sizeof(res))
+		if (uncomp_data_buffer_sz < sz)
 			THROW_FATAL(EXP_LOG_CORRUPTED, "unaligned readahead");
-		res = *((uintptr_t *)(uncomp_data_buffer_ptr));
+		memcpy(data, uncomp_data_buffer_ptr, sz);
 	} NO_FINALLY
 	CATCH(exp) {
 		switch (exp.type) {
 		case EXP_LOG_END:
 			VERBOSE(REPLAYER_HOST, "log has end when readahead\n");
-			res = 0xffffffff;
+			retval = FALSE;
 			break;
 		default:
 			RETHROW(exp);
 		}
 	}
-	return res;
+	return retval;
 }
 
 #define BUFFER_SZ	(1024 * 1024)
