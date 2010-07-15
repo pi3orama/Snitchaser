@@ -8,6 +8,7 @@ SET(tests
 	test_segfault
 	test_getpid
 	test_sigign
+	test_sleep
 	)
 
 build_tests("${tests}" "")
@@ -46,6 +47,12 @@ SET_PROPERTY(TARGET test_sigign
 	APPEND
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
 	)
+
+SET_PROPERTY(TARGET test_sleep
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
+
 ## SET(CAN_USE_ASSEMBLER TRUE)
 ## ENABLE_LANGUAGE(ASM-S)
 ## ADD_EXECUTABLE(test_syscall_asm test_syscall_asm.S)

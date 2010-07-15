@@ -18,6 +18,7 @@ SET(SYSCALLS
 	rt_sigprocmask.c
 	sigprocmask.c
 	rt_sigaction.c
+	nanosleep.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

@@ -59,7 +59,6 @@ int
 replay_rt_sigprocmask(struct pusha_regs * regs)
 {
 	int retval = regs->eax;
-	int how = regs->ebx;
 	uint32_t * oset = (uint32_t *)(regs->edx);
 	if (retval >= 0) {
 		if (oset != NULL)
