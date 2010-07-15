@@ -24,6 +24,7 @@ struct SN_info {
 	/* function pointers */
 	void * is_branch_inst;
 	void * replay_nop;
+	void * replay_trap;
 	void * syscall_helper;
 	void * get_next_branch;
 };

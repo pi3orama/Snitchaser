@@ -115,16 +115,21 @@ wait_for_replayer_sync(void)
 }
 
 static void
-adjust_wait_result(void)
+adjust_wait_result(bool_t trap, bool_t keep_eip)
 {
 	uintptr_t ori_eip = ptrace_get_eip(SN_info.pid);
-	ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.replay_nop);
+	if (!trap)
+		ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.replay_nop);
+	else
+		ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.replay_trap);
+
 	int ret = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
 	CTHROW_FATAL(ret == 0, EXP_GDBSERVER_ERROR,
 			"PTRACE_SINGLESTEP failed, err=%d", ret);
 	
 	my_waitid(TRUE, TRUE, SIGTRAP);
-	ptrace_set_eip(SN_info.pid, ori_eip);
+	if (keep_eip)
+		ptrace_set_eip(SN_info.pid, ori_eip);
 }
 
 void
@@ -224,7 +229,7 @@ ptrace_single_step(bool_t is_branch,
 			WARNING(XGDBSERVER, "reset eip to 0x%x\n", pnext_inst);
 			ptrace_set_eip(SN_info.pid, pnext_inst);
 
-			adjust_wait_result();
+			adjust_wait_result(FALSE, TRUE);
 			return 0;
 		}
 		return ret;
@@ -253,7 +258,7 @@ ptrace_single_step(bool_t is_branch,
 			ptrace_set_esp(SN_info.pid, psaved_regs->esp + 4);
 
 		ret = 0;
-		adjust_wait_result();
+		adjust_wait_result(FALSE, TRUE);
 	}
 
 	uintptr_t eip = ptrace_get_eip(SN_info.pid);
@@ -306,7 +311,10 @@ SN_cont(void)
 		/* readahead and check mark */
 		uintptr_t ptr = readahead_log_ptr();
 		/* 0xffffffff means the end of log */
-		if ((!IS_VALID_PTR(ptr)) && (ptr != SYSCALL_MARK) && (ptr != 0xffffffff)) {
+		if ((!IS_VALID_PTR(ptr)) &&
+				(ptr != SYSCALL_MARK) &&
+				(ptr != 0xffffffff))
+		{
 
 			THROW_FATAL(EXP_UNIMPLEMENTED, "read from log, next mark is 0x%x",
 					ptr);
@@ -448,7 +456,7 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 
 	/* restore registers */
 	arch_restore_registers(SN_info.pid, &new_regs, new_eip);
-	adjust_wait_result();
+	adjust_wait_result(FALSE, TRUE);
 
 #if 0
 	struct pusha_regs ori_regs, new_regs;
@@ -488,14 +496,79 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 }
 
 static int
-SN_single_step(void)
+signal_inst(uintptr_t eip, uint32_t terminal_mark, int signum)
 {
 
+	/* 
+	 * the order of signal marks:
+	 * 	SIGNAL_MARK,
+	 * 	EIP,
+	 * 	TERMINAL_MARK (whether process is terminated or move
+	 * 					to signal handler)
+	 *  SIGNUM,
+	 *
+	 *  if process is terminated, don't append anything to log and replayer
+	 *  will end automatically.
+	 *
+	 *  if we use signal handler, following marks should be:
+	 *  SIGNAL_MARK_2, SIGSTACK, FRAMESIZE, SIGFRAME, REGS, sighandler's eip
+	 *
+	 * SIGNAL_MARK_2 is important. when gdb use ptrace continue or
+	 * ptrace single step, snitchaser_patch can readahead and find this mark, it
+	 * can then form a signal frame and direct target process to signal handler.
+	 *  */
+
+	struct {
+		uint32_t signal_mark;
+		uintptr_t addr;
+		uint32_t terminal_mark;
+		int signum;
+	} marks;
+
+	/* consume the marks */
+	read_log(&marks, sizeof(marks));
+	assert((marks.addr == eip) &&
+			(marks.terminal_mark == terminal_mark) &&
+			(marks.signum == signum));
+
+	/* generate a SIGTRAP then return 0 */
+	/* don't keep eip */
+	adjust_wait_result(TRUE, FALSE);
+
+	return 0;
+}
+
+static int
+SN_single_step(void)
+{
 	struct user_regs_struct saved_regs;
 	ptrace_get_regset(SN_info.pid, &saved_regs);
 
 	/* fetch original eip */
 	uintptr_t eip = saved_regs.eip;
+
+	/* readahead log, whether this instruction is
+	 * interrupted by a signal? */
+	/* FIXME */
+	uint32_t mark = readahead_log_ptr();
+	if (mark == SIGNAL_MARK) {
+		struct {
+			uint32_t signal_mark;
+			uintptr_t addr;
+			uint32_t terminal_mark;
+			int signum;
+		} marks;
+		readahead_log(&marks, sizeof(marks));
+		if (marks.addr == eip) {
+			VERBOSE(XGDBSERVER, "inst 0x%x interrupted by signal %d\n",
+					eip, marks.signum);
+			return signal_inst(eip, marks.terminal_mark, marks.signum);
+		}
+	}
+
+	if (mark == SIGNAL_MARK_2) {
+		THROW_FATAL(EXP_UNIMPLEMENTED, "will enter signal handler...");
+	}
 
 	ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.is_branch_inst);
 	target_continue();

@@ -12,6 +12,9 @@ extern void
 replay_nop(void);
 
 extern void
+replay_trap(void);
+
+extern void
 replay_syscall_helper(void);
 
 extern void

@@ -106,11 +106,11 @@ signal_terminate(int num, struct thread_private_data * tpd, void * addr)
 	 * to prevent potential log flush */
 	struct {
 		uint32_t signal_mark;
-		int signum;
 		void * addr;
 		uint32_t terminal_mark;
+		int signum;
 	} mark = {
-		SIGNAL_MARK, num, addr, SIGNAL_TERMINATE
+		SIGNAL_MARK, addr, SIGNAL_TERMINATE, num
 	};
 	append_buffer(&mark, sizeof(mark));
 	flush_logger();
