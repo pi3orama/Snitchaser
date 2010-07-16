@@ -310,7 +310,7 @@ gdbloader_main(const char * target_fn)
 	 * 1. add a syscall into kernel's code, change its pid. it is simple.
 	 * 2. change the image when gdb attach.
 	 *
-	 * We choose the 2nd one because we prefer use space solution.
+	 * We choose the 2nd one because we prefer user space solution.
 	 *
 	 * */
 	uint32_t sym_stack_used = 0, sym_stack_user = 0;

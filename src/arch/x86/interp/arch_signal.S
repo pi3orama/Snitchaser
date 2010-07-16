@@ -18,7 +18,9 @@ arch_wrapper_rt_sighandler:
 	pushf
 	pushl $0x0202
 	popfl
+	push %esp
 	call do_arch_wrapper_rt_sighandler
+	addl $4, %esp
 	cmpl $1, %eax
 	je 1f
 	cmpl $2, %eax
@@ -48,7 +50,9 @@ arch_wrapper_sighandler:
 	pushf
 	pushl $0x0202
 	popfl
+	push %esp
 	call do_arch_wrapper_sighandler
+	addl $4, %esp
 	cmpl $1, %eax
 	je 1f
 	cmpl $2, %eax

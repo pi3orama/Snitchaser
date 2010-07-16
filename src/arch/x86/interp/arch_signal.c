@@ -12,6 +12,7 @@
 #include <xasm/tls.h>
 #include <xasm/string.h>
 #include <xasm/marks.h>
+#include <xasm/processor.h>
 
 #include <interp/logger.h>
 
@@ -79,6 +80,8 @@ arch_init_signal(void)
 
 		if (pa->sa_flags & SA_RESTORER)
 			FATAL(SIGNAL, "doesn't support target reset restorer\n");
+		if (pa->sa_flags & SA_ONSTACK)
+			FATAL(SIGNAL, "doesn't support signal stack\n");
 
 		new_action.sa_flags = pa->sa_flags & SA_RESTORER;
 		if (pa->sa_flags & SA_SIGINFO) {
@@ -169,11 +172,48 @@ signal_stop(int num, struct thread_private_data * tpd)
 	assert(err == 0);
 }
 
+static void
+signal_handler(int num, struct thread_private_data * tpd,
+		void * addr, struct k_sigaction * act, void * frame,
+		size_t frame_sz, struct pusha_regs * regs)
+{
+	VERBOSE(SIGNAL, "entering signal handler\n");
+	/* write mark to log */
+	struct {
+		uint32_t signal_mark;
+		void * addr;
+		uint32_t terminal_mark;
+		int signum;
+	} mark = {
+		SIGNAL_MARK, addr, SIGNAL_HANDLER, num,
+	};
+	append_buffer(&mark, sizeof(mark));
+
+	/* see comments in snitchaser_patch.c */
+	struct {
+		uint32_t signal_mark_2;
+		struct pusha_regs regs;
+		uint32_t frame_size;
+		uintptr_t handler;
+	} mark2;
+	mark2.signal_mark_2 = SIGNAL_MARK_2;
+	mark2.regs = *regs;
+	mark2.regs.esp = (uintptr_t)(tpd->old_stack_top);
+	mark2.frame_size = frame_sz;
+	mark2.handler = (uintptr_t)(act->sa_handler);
+
+	append_buffer(&mark2, sizeof(mark2));
+	append_buffer(frame, frame_sz);
+	flush_logger();
+	tpd->target = act->sa_handler;
+}
+
 /* if return 1, sigreturn (or rt_sigreturn) */
 /* if return 2, terminate */
 static int
 common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
-		struct thread_private_data * tpd, void * ori_addr)
+		struct thread_private_data * tpd, void * ori_addr,
+		struct pusha_regs * regs)
 {
 	/* check whether to terminate */
 	struct k_sigaction * act = &(tpd->sigactions[num - 1]);
@@ -199,7 +239,8 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 			signal_terminate(num, tpd, ori_addr);
 		}
 	} else {
-		FATAL(SIGNAL, "unimplemented\n");
+		signal_handler(num, tpd, ori_addr, act,
+				frame, frame_sz, regs);
 	}
 	return 0;
 }
@@ -220,7 +261,7 @@ get_ori_address(struct code_block_t * blk, void * _addr)
 }
 
 int
-do_arch_wrapper_sighandler(void)
+do_arch_wrapper_sighandler(struct pusha_regs * regs)
 {
 	struct thread_private_data * tpd = get_tpd();
 	struct sigframe * frame = tpd->old_stack_top;
@@ -228,11 +269,11 @@ do_arch_wrapper_sighandler(void)
 	void * ori_addr = get_ori_address(tpd->code_cache.current_block,
 			(void *)eip);
 	return common_wrapper_sighandler(frame->sig, frame,
-			sizeof(*frame), tpd, ori_addr);
+			sizeof(*frame), tpd, ori_addr, regs);
 }
 
 int
-do_arch_wrapper_rt_sighandler(void)
+do_arch_wrapper_rt_sighandler(struct pusha_regs * regs)
 {
 	struct thread_private_data * tpd = get_tpd();
 	struct rt_sigframe * rt_frame = tpd->old_stack_top;
@@ -240,7 +281,7 @@ do_arch_wrapper_rt_sighandler(void)
 	void * ori_addr = get_ori_address(tpd->code_cache.current_block,
 			(void *)eip);
 	return common_wrapper_sighandler(rt_frame->sig, rt_frame,
-			sizeof(*rt_frame), tpd, ori_addr);
+			sizeof(*rt_frame), tpd, ori_addr, regs);
 }
 
 void

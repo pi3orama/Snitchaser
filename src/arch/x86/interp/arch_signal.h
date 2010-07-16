@@ -7,6 +7,7 @@
 #define __ARCH_SIGNAL_H
 
 #include <xasm/signal_helper.h>
+#include <xasm/processor.h>
 
 k_sigset_t
 arch_replay_mask_signals(void);
@@ -32,10 +33,10 @@ arch_wrapper_sigreturn(void);
 
 /* defined in arch_signal.c */
 int
-do_arch_wrapper_rt_sighandler(void);
+do_arch_wrapper_rt_sighandler(struct pusha_regs * regs);
 
 int
-do_arch_wrapper_sighandler(void);
+do_arch_wrapper_sighandler(struct pusha_regs * regs);
 
 void
 do_arch_wrapper_rt_sigreturn(void);

@@ -19,6 +19,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+
 #include <xasm/signal_numbers.h>
 #include <xasm/marks.h>
 /* target.h depends on server.h */
@@ -32,7 +33,7 @@ static struct pusha_regs * pusha_regs_addr;
 static void
 target_read_memory(uintptr_t memaddr, void * myaddr, size_t len)
 {
-	DEBUG(XGDBSERVER, "read memory: 0x%x %d\n", memaddr, len);
+	SILENT(XGDBSERVER, "read memory: 0x%x %d\n", memaddr, len);
 	assert(the_target->read_memory);
 	assert(myaddr != NULL);
 	int err = read_inferior_memory((CORE_ADDR)(uintptr_t)memaddr, myaddr, len);
@@ -44,7 +45,7 @@ target_read_memory(uintptr_t memaddr, void * myaddr, size_t len)
 static void
 target_write_memory(uintptr_t memaddr, void * myaddr, size_t len)
 {
-	DEBUG(XGDBSERVER, "write memory: 0x%x %d\n", memaddr, len);
+	SILENT(XGDBSERVER, "write memory: 0x%x %d\n", memaddr, len);
 	assert(the_target->write_memory);
 	assert(myaddr != NULL);
 	int err = write_inferior_memory((CORE_ADDR)(uintptr_t)memaddr, myaddr, len);
@@ -283,6 +284,65 @@ static int
 SN_single_step(void);
 
 static int
+cont_to_signal(void)
+{
+	uintptr_t mark = readahead_log_ptr();
+	assert(mark == SIGNAL_MARK);
+
+	struct {
+		uint32_t signal_mark;
+		uintptr_t addr;
+		uint32_t terminal_mark;
+		int signum;
+	} marks;
+
+	readahead_log(&marks, sizeof(marks));
+
+	for (;;) {
+		uintptr_t curr_eip = ptrace_get_eip(SN_info.pid);
+		TRACE(XGDBSERVER, "single step to 0x%x (current: 0x%x)\n",
+				marks.addr, curr_eip);
+		assert(curr_eip <= marks.addr);
+		if (curr_eip != marks.addr)
+			SN_single_step();
+		else
+			break;
+	}
+	SN_single_step();
+	return 0;
+}
+
+static void
+setup_sighandler(void)
+{
+	uint32_t m = readahead_log_ptr();
+	if (m != SIGNAL_MARK_2)
+		THROW_FATAL(EXP_LOG_CORRUPTED, "no SIGNAL_MARK_2 for signal handler");
+	/* see arch_signal.c -- signal_handler */
+	struct {
+		uint32_t signal_mark_2;
+		struct pusha_regs regs;
+		uint32_t frame_size;
+		uintptr_t handler;
+	} mark;
+	read_log(&mark, sizeof(mark));
+
+	uintptr_t esp = mark.regs.esp;
+	void * frame = alloca(mark.frame_size);
+	assert(frame != NULL);
+	read_log(frame, mark.frame_size);
+
+	/* poke memory */
+	target_write_memory(esp, frame, mark.frame_size);
+
+	/* reset registers */
+	arch_restore_registers(SN_info.pid, &(mark.regs), mark.handler);
+
+	/* set sigtrap wait state */
+	adjust_wait_result(TRUE, TRUE);
+}
+
+static int
 SN_cont(void)
 {
 	TRACE(XGDBSERVER, "ptrace_cont\n");
@@ -310,22 +370,38 @@ SN_cont(void)
 	for (;;) {
 		/* readahead and check mark */
 		uintptr_t ptr = readahead_log_ptr();
+		TRACE(XGDBSERVER, "ptr = 0x%x\n", ptr);
 		/* 0xffffffff means the end of log */
 		if ((!IS_VALID_PTR(ptr)) &&
 				(ptr != SYSCALL_MARK) &&
 				(ptr != 0xffffffff))
 		{
-
-			THROW_FATAL(EXP_UNIMPLEMENTED, "read from log, next mark is 0x%x",
-					ptr);
 			/* NOTICE: a signal may arise at another block! for example:
 			 *
 			 * (current eip):
 			 * movl xx, xx
 			 * jmp 1f
 			 * nop
-			 * 1: xxxx	(raise a signal)
+			 * 1: xxxx	(raise a signal).
+			 *
+			 * However, we doesn't allow this situation. when each code block
+			 * begin, the compiled code will set tpd->current_block before
+			 * anything.
 			 * */
+
+			if (ptr == SIGNAL_MARK) {
+				DEBUG(XGDBSERVER,
+						"see signal mark, "
+						"single step to signaled instruction\n");
+				return cont_to_signal();
+			} else if (ptr == SIGNAL_MARK_2) {
+				DEBUG(XGDBSERVER, "move to signal handler\n");
+				setup_sighandler();
+				return 0;
+			} else {
+				THROW_FATAL(EXP_UNIMPLEMENTED,
+						"read from log, next mark is 0x%x",	ptr);
+			}
 		}
 
 		struct user_regs_struct saved_regs;
@@ -498,7 +574,6 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 static int
 signal_inst(uintptr_t eip, uint32_t terminal_mark, int signum)
 {
-
 	/* 
 	 * the order of signal marks:
 	 * 	SIGNAL_MARK,
@@ -511,7 +586,7 @@ signal_inst(uintptr_t eip, uint32_t terminal_mark, int signum)
 	 *  will end automatically.
 	 *
 	 *  if we use signal handler, following marks should be:
-	 *  SIGNAL_MARK_2, SIGSTACK, FRAMESIZE, SIGFRAME, REGS, sighandler's eip
+	 *  SIGNAL_MARK_2, registers, FRAMESIZE, SIGFRAME, sighandler's eip
 	 *
 	 * SIGNAL_MARK_2 is important. when gdb use ptrace continue or
 	 * ptrace single step, snitchaser_patch can readahead and find this mark, it
@@ -533,7 +608,7 @@ signal_inst(uintptr_t eip, uint32_t terminal_mark, int signum)
 
 	/* generate a SIGTRAP then return 0 */
 	/* don't keep eip */
-	adjust_wait_result(TRUE, FALSE);
+	adjust_wait_result(TRUE, TRUE);
 
 	return 0;
 }
@@ -567,7 +642,9 @@ SN_single_step(void)
 	}
 
 	if (mark == SIGNAL_MARK_2) {
-		THROW_FATAL(EXP_UNIMPLEMENTED, "will enter signal handler...");
+		setup_sighandler();
+		ptrace_get_regset(SN_info.pid, &saved_regs);
+		eip = saved_regs.eip;
 	}
 
 	ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.is_branch_inst);

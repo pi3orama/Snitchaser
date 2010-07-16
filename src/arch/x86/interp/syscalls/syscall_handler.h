@@ -37,9 +37,11 @@
 # define ATTR_UNUSED __attribute__((unused))
 #endif
 
+#ifndef DEFINED_PUSHA_REGS
+#define DEFINED_PUSHA_REGS
 /* same as xasm/processor.h */
 struct pusha_regs {
-	uint32_t flags;
+	uint32_t eflags;
 	uint32_t edi;
 	uint32_t esi;
 	uint32_t ebp;
@@ -49,6 +51,7 @@ struct pusha_regs {
 	uint32_t ecx;
 	uint32_t eax;
 };
+#endif
 
 #ifdef POST_LIBRARY
 

@@ -6,6 +6,10 @@
 #include <sys/user.h>
 
 /* xmain return stack adjustment value, in dwords */
+
+#ifndef DEFINED_PUSHA_REGS
+#define DEFINED_PUSHA_REGS
+/* see syscall_handler.h */
 struct pusha_regs {
 	uint32_t eflags;
 	uint32_t edi;
@@ -17,6 +21,7 @@ struct pusha_regs {
 	uint32_t ecx;
 	uint32_t eax;
 };
+#endif
 
 #define stack_top(r)	((r)->esp)
 

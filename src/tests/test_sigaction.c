@@ -26,8 +26,9 @@ int main()
 	printf("oact.sa_handler=%p\n", oact.sa_handler);
 	printf("oact.sa_flags=0x%x\n", oact.sa_flags);
 	printf("oact.sa_restorer=%p\n", oact.sa_restorer);
-	printf("oact.sa_mask[0]=0x%x\n", ((int*)(&oact.sa_mask))[0]);
-	printf("oact.sa_mask[1]=0x%x\n", ((int*)(&oact.sa_mask))[1]);
+	int * tmp = (void*)(&oact.sa_mask);
+	printf("oact.sa_mask[0]=0x%x\n", tmp[0]);
+	printf("oact.sa_mask[1]=0x%x\n", tmp[1]);
 
 	printf("\n");
 	err = sigaction(SIGRTMIN + 3, NULL, &oact);
@@ -36,8 +37,9 @@ int main()
 	printf("oact.sa_handler=%p\n", oact.sa_handler);
 	printf("oact.sa_flags=0x%x\n", oact.sa_flags);
 	printf("oact.sa_restorer=%p\n", oact.sa_restorer);
-	printf("oact.sa_mask[0]=0x%x\n", ((int*)(&oact.sa_mask))[0]);
-	printf("oact.sa_mask[1]=0x%x\n", ((int*)(&oact.sa_mask))[1]);
+	tmp = (void*)(&oact.sa_mask);
+	printf("oact.sa_mask[0]=0x%x\n", tmp[0]);
+	printf("oact.sa_mask[1]=0x%x\n", tmp[1]);
 	return 0;
 }
 

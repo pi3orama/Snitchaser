@@ -16,6 +16,22 @@ IF (BUILD_TESTS)
 ENDIF(BUILD_TESTS)
 ENDMACRO(build_tests testlist libs)
 
+MACRO(build_interp_tests testlist libs)
+IF (BUILD_TESTS)
+	FOREACH(t ${testlist})
+		ADD_EXECUTABLE(${t} ${t}.c)
+		SET_PROPERTY(TARGET ${t}
+			APPEND
+			PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+			)
+		FOREACH(l ${libs})
+			TARGET_LINK_LIBRARIES(${t} ${l})
+		ENDFOREACH(l ${libs})
+	ENDFOREACH(t ${tests})
+ENDIF(BUILD_TESTS)
+ENDMACRO(build_interp_tests testlist libs)
+
+
 SET(INTERP_COMPILE_FLAGS "-fvisibility=hidden -fPIC -fno-builtin-printf -fno-builtin-vsnprintf")
 SET(INTERP_LINK_FLAGS "-nostartfiles -nodefaultlibs -nostdlib")
 
