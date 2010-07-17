@@ -53,6 +53,8 @@ post_log_syscall(struct pusha_regs * regs)
 	real_regs.esp = (uintptr_t)(tpd->old_stack_top);
 	append_buffer(&real_regs, sizeof(real_regs));
 
+	tpd->current_syscall_nr = -1;
+
 	if (syscall_table[nr].post_handler) {
 		syscall_table[nr].post_handler(regs);
 		return;

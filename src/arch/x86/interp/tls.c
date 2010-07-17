@@ -101,8 +101,6 @@ clear_tls_slot(int tnr)
 static struct thread_private_data *
 setup_tls_area(int tnr)
 {
-	int err;
-
 	/* setup fs: alloc tls stack and init thread private data */
 	void * stack_base_addr = TNR_TO_STACK(tnr);
 
@@ -115,7 +113,7 @@ setup_tls_area(int tnr)
 			-1, 0);
 	assert(p == stack_base_addr);
 	/* mprotect */
-	err = INTERNAL_SYSCALL_int80(mprotect, 3,
+	int err = INTERNAL_SYSCALL_int80(mprotect, 3,
 			p, GUARDER_LENGTH, PROT_NONE);
 	assert(err == 0);
 
@@ -212,6 +210,7 @@ init_tls(void)
 
 	tpd->tid = tid;
 	tpd->pid = pid;
+	tpd->current_syscall_nr = -1;
 	build_tpd(tpd);
 	spin_unlock(&__tls_ctl_lock);
 }

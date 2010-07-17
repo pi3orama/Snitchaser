@@ -13,7 +13,8 @@
 #include <xasm/string.h>
 #include <xasm/marks.h>
 #include <xasm/processor.h>
-
+#include <xasm/utils.h>
+#include <interp/mm.h>
 #include <interp/logger.h>
 
 k_sigset_t
@@ -172,13 +173,15 @@ signal_stop(int num, struct thread_private_data * tpd)
 	assert(err == 0);
 }
 
+/* peip is the address of ip field in frame  */
 static void
 signal_handler(int num, struct thread_private_data * tpd,
 		void * addr, struct k_sigaction * act, void * frame,
-		size_t frame_sz, struct pusha_regs * regs)
+		size_t frame_sz, struct pusha_regs * regs,
+		void * retcode, struct sigcontext * psc)
 {
 	DEBUG(SIGNAL, "entering signal handler\n");
-	DEBUG(SIGNAL, "retcode in frame: %p\n", *(void**)frame);
+	DEBUG(SIGNAL, "ret addr in frame: %p\n", *(void**)frame);
 	/* write mark to log */
 	struct {
 		uint32_t signal_mark;
@@ -206,7 +209,28 @@ signal_handler(int num, struct thread_private_data * tpd,
 	append_buffer(&mark2, sizeof(mark2));
 	append_buffer(frame, frame_sz);
 	flush_logger();
+
+	/* for signal handler: we MUST save frame's eip to let sigreturn return to
+	 * correct address when recording.  we also MUST save original eip to
+	 * enable replayer to resume at correct address. */
+	uintptr_t * backup_space = retcode;
+	backup_space[0] = psc->ip;
+	backup_space[1] = (uintptr_t)(tpd->target);
+
+	/* MUST SAVE tpd->target for sigreturn */
 	tpd->target = act->sa_handler;
+	psc->ip = (uintptr_t)(addr);
+
+	/* for system call */
+	if (tpd->current_syscall_nr != -1) {
+		assert(tpd->code_cache.current_block->exit_type == EXIT_SYSCALL);
+		TRACE(SIGNAL, "system call %d is broken by signal %d\n",
+				tpd->current_syscall_nr, num);
+		assert(tpd->current_syscall_nr < 0xffff);
+		psc->__esh = tpd->current_syscall_nr;
+	} else {
+		psc->__esh = 0xffff;
+	}
 }
 
 /* if return 1, sigreturn (or rt_sigreturn) */
@@ -214,7 +238,8 @@ signal_handler(int num, struct thread_private_data * tpd,
 static int
 common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 		struct thread_private_data * tpd, void * ori_addr,
-		struct pusha_regs * regs)
+		struct pusha_regs * regs, void * retcode,
+		struct sigcontext * psc)
 {
 	/* check whether to terminate */
 	struct k_sigaction * act = &(tpd->sigactions[num - 1]);
@@ -242,7 +267,7 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 		}
 	} else {
 		signal_handler(num, tpd, ori_addr, act,
-				frame, frame_sz, regs);
+				frame, frame_sz, regs, retcode, psc);
 	}
 	return 0;
 }
@@ -270,8 +295,11 @@ do_arch_wrapper_sighandler(struct pusha_regs * regs)
 	void * eip = (void*)(frame->sc.ip);
 	void * ori_addr = get_ori_address(tpd->code_cache.current_block,
 			(void *)eip);
+	DEBUG(SIGNAL, "frame at %p\n", frame);
 	return common_wrapper_sighandler(frame->sig, frame,
-			sizeof(*frame), tpd, ori_addr, regs);
+			sizeof(*frame), tpd, ori_addr, regs,
+			frame->retcode,
+			&(frame->sc));
 }
 
 int
@@ -282,20 +310,53 @@ do_arch_wrapper_rt_sighandler(struct pusha_regs * regs)
 	void * eip = (void*)rt_frame->uc.uc_mcontext.ip;
 	void * ori_addr = get_ori_address(tpd->code_cache.current_block,
 			(void *)eip);
+	WARNING(SIGNAL, "rt_frame at %p\n", rt_frame);
 	return common_wrapper_sighandler(rt_frame->sig, rt_frame,
-			sizeof(*rt_frame), tpd, ori_addr, regs);
+			sizeof(*rt_frame), tpd, ori_addr, regs,
+			rt_frame->retcode,
+			&(rt_frame->uc.uc_mcontext));
+}
+
+static void
+common_wrapper_sigreturn(struct thread_private_data * tpd,
+		void * retcode, struct sigcontext * psc)
+{
+	uintptr_t * backup_space = retcode;
+	psc->ip = backup_space[0];
+	tpd->target = (void*)(backup_space[1]);
+
+	TRACE(SIGNAL, "return to ip 0x%lx\n", psc->ip);
+	if (psc->__esh != 0xffff) {
+		/* resume system call */
+		TRACE(SIGNAL, "resume system call %d\n", psc->__esh);
+		tpd->current_syscall_nr = psc->__esh;
+		struct {
+			uint32_t mark;
+			uint32_t nr;
+		} syscall_mark2 = {
+			SYSCALL_MARK, tpd->current_syscall_nr
+		};
+		append_buffer(&syscall_mark2, sizeof(syscall_mark2));
+	} else {
+		tpd->current_syscall_nr = -1;
+	}
 }
 
 void
 do_arch_wrapper_sigreturn(void)
 {
-	FATAL(SIGNAL, "unimplemented\n");
+	struct thread_private_data * tpd = get_tpd();
+	struct sigframe * frame = (void*)(tpd->old_stack_top - 4);
+	common_wrapper_sigreturn(tpd, frame->retcode, &(frame->sc));
 }
 
 void
 do_arch_wrapper_rt_sigreturn(void)
 {
-	FATAL(SIGNAL, "unimplemented\n");
+	struct thread_private_data * tpd = get_tpd();
+	struct rt_sigframe * rt_frame = (void*)(tpd->old_stack_top - 4);
+	common_wrapper_sigreturn(tpd, rt_frame->retcode,
+			&(rt_frame->uc.uc_mcontext));
 }
 
 

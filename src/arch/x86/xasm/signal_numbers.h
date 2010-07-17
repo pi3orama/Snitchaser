@@ -127,6 +127,10 @@
 #endif
 
 #define GDBSERVER_NOTIFICATION	(SIGRTMAX - 1)
+
+/* SIGRT1 used to support LinuxThread, which "has been superseded by the Native
+ * POSIX Thread Library (NPTL)". In current glibc implementation, rt_sigprocmask
+ * and sigaction never block SIGRT1. so we can use it to replace SIGKILL. */
 #define SIGKILL_REPLACE		(SIGRTMIN + 1)
 
 /*

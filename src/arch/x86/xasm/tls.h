@@ -76,11 +76,13 @@ struct thread_private_data {
 	uintptr_t argp_first;
 	uintptr_t argp_last;
 
-	/* access: *fs:(0x3000 - 4); stores: the base (lowest)
-	 * address of the TLS section */
+	/* default is -1, set in init_tls */
+	/* also see log_syscall */
 	int current_syscall_nr;
 	struct thread_private_data * next_tpd;
 
+	/* access: *fs:(0x3000 - 4); stores: the base (lowest)
+	 * address of the TLS section */
 	void * tls_base;
 };
 
@@ -92,6 +94,10 @@ extern struct list_head tpd_list_head;
 #define TNR_TO_STACK(n)		((void*)(((n) + 1) * TLS_STACK_SIZE))
 #define STACK_TO_TNR(a)		(((unsigned int)(a)) / TLS_STACK_SIZE - 1)
 #define GUARDER_LENGTH		(0x1000)
+
+#ifndef PAGE_SIZE
+# define PAGE_SIZE	(4096)
+#endif
 
 
 /* init_tls ans clear_tls should be called

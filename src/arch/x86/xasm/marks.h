@@ -19,6 +19,9 @@
 #define SIGNAL_TERMINATE	(0x00001206)
 #define SIGNAL_HANDLER		(0x00001207)
 
+/* the address of arch_wrapper_sigreturn and arch_wrapper_rt_sigreturn
+ * is signal return marks. */
+
 #define SYSCALL_READ_START_MARK	(0xf0f0f0f0)
 #define SYSCALL_READ_MARK	(0xe0e0e0e0)
 #define SYSCALL_READ_ERROR_MARK	(0xffffffff)
