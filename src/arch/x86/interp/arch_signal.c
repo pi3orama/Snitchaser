@@ -83,7 +83,7 @@ arch_init_signal(void)
 		if (pa->sa_flags & SA_ONSTACK)
 			FATAL(SIGNAL, "doesn't support signal stack\n");
 
-		new_action.sa_flags = pa->sa_flags & SA_RESTORER;
+		new_action.sa_flags = pa->sa_flags | SA_RESTORER;
 		if (pa->sa_flags & SA_SIGINFO) {
 			new_action.sa_handler = arch_wrapper_rt_sighandler;
 			new_action.sa_restorer = arch_wrapper_rt_sigreturn;
@@ -178,6 +178,7 @@ signal_handler(int num, struct thread_private_data * tpd,
 		size_t frame_sz, struct pusha_regs * regs)
 {
 	VERBOSE(SIGNAL, "entering signal handler\n");
+	VERBOSE(SIGNAL, "retcode in frame: %p\n", *(void**)frame);
 	/* write mark to log */
 	struct {
 		uint32_t signal_mark;
@@ -233,7 +234,8 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 			return 1;
 		} else if ((num == SIGURG) ||
 				(num == SIGWINCH) ||
-				(num == SIGCHLD)) {
+				(num == SIGCHLD) ||
+				(num == SIGCONT)) {
 			return 1;
 		} else {
 			signal_terminate(num, tpd, ori_addr);

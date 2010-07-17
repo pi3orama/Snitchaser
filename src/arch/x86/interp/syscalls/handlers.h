@@ -16,6 +16,8 @@ def_trival_handler(getpid)
 def_trival_handler(kill)
 def_complex_handler(rt_sigaction)
 def_handler(nanosleep)
+def_trival_handler(gettid)
+def_trival_handler(tgkill)
 
 // vim:ts=4:sw=4
 

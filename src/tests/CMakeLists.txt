@@ -11,6 +11,7 @@ SET(tests
 	test_sleep
 	test_sigaction
 	test_sighandler
+	test_sighandler_2
 	)
 
 build_interp_tests("${tests}" "")

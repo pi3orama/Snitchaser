@@ -680,6 +680,21 @@ do_real_branch(void)
 	TRACE(COMPILER, "do_real_branch, dt=%p, ce=%p, lte=%p\n", tpd->target,
 			cache->current_block->entry,
 			cache->current_block->last_target_entry);
+
+	/* special case: signal return */
+	extern void arch_wrapper_rt_sigreturn(void);
+	extern void arch_wrapper_sigreturn(void);
+	if ((tpd->target == arch_wrapper_rt_sigreturn) ||
+			(tpd->target == arch_wrapper_sigreturn))
+	{
+		TRACE(COMPILER, "code is moving to wrapper sigreturn\n");
+		/* Check: current block should not be an
+		 * unconditional direct branch */
+		assert(cache->current_block->exit_type == EXIT_UNCOND_INDIRECT);
+		/* return! */
+		return;
+	}
+
 	if (cache->current_block->last_target_entry ==
 			tpd->target)
 	{
