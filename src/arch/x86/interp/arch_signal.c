@@ -177,8 +177,8 @@ signal_handler(int num, struct thread_private_data * tpd,
 		void * addr, struct k_sigaction * act, void * frame,
 		size_t frame_sz, struct pusha_regs * regs)
 {
-	VERBOSE(SIGNAL, "entering signal handler\n");
-	VERBOSE(SIGNAL, "retcode in frame: %p\n", *(void**)frame);
+	DEBUG(SIGNAL, "entering signal handler\n");
+	DEBUG(SIGNAL, "retcode in frame: %p\n", *(void**)frame);
 	/* write mark to log */
 	struct {
 		uint32_t signal_mark;

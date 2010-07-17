@@ -16,7 +16,7 @@ int main()
 	act.sa_handler = handler;
 	act.sa_flags = SA_RESTART;
 	act.sa_restorer = NULL;
-	sigemptyset(&act.sa_mask);
+	sigfillset(&act.sa_mask);
 	sigaddset(&act.sa_mask, SIGINT);
 
 	int err = sigaction(SIGRTMIN + 3, &act, &oact);

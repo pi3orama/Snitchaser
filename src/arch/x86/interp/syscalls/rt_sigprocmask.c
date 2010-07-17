@@ -8,9 +8,25 @@
 #include <xasm/tls.h>
 #include <xasm/syscall.h>
 #include <xasm/string.h>
+#include <xasm/signal_numbers.h>
 
 #ifdef PRE_LIBRARY
-/* do nothing */
+int
+pre_rt_sigprocmask(struct pusha_regs * regs)
+{
+	int how = regs->ebx;
+	uint32_t * set = (uint32_t *)(regs->ecx);
+	if (how == SIG_BLOCK) {
+		if (set != NULL) {
+			if (set[1] & SET_SIGKILL_REPLACE_MASK) {
+				WARNING(LOG_SYSCALL, "target proc tries to block SIGKILL_REPLACE!: 0x%x\n",
+						set[1]);
+				set[1] &= UNSET_SIGKILL_REPLACE_MASK;
+			}
+		}
+	}
+	return 0;
+}
 #endif
 
 #define SIGSET_SZ	(2 * sizeof(uint32_t))
@@ -20,7 +36,6 @@ int
 post_rt_sigprocmask(struct pusha_regs * regs)
 {
 	int retval = regs->eax;
-	int how = regs->ebx;
 	uint32_t * set = (uint32_t *)(regs->ecx);
 	uint32_t * oset = (uint32_t *)(regs->edx);
 
