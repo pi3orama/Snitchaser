@@ -281,7 +281,7 @@ ptrace_single_step(bool_t is_branch,
 
 
 static int
-SN_single_step(void);
+SN_single_step(bool_t * cont_stop);
 
 static int
 cont_to_signal(void)
@@ -298,17 +298,22 @@ cont_to_signal(void)
 
 	readahead_log(&marks, sizeof(marks));
 
+	bool_t cont_stop = FALSE;
+
 	for (;;) {
 		uintptr_t curr_eip = ptrace_get_eip(SN_info.pid);
 		TRACE(XGDBSERVER, "single step to 0x%x (current: 0x%x)\n",
 				marks.addr, curr_eip);
 		assert(curr_eip <= marks.addr);
-		if (curr_eip != marks.addr)
-			SN_single_step();
-		else
+		if (curr_eip != marks.addr) {
+			SN_single_step(&cont_stop);
+			if (cont_stop)
+				return 0;
+		} else {
 			break;
+		}
 	}
-	SN_single_step();
+	SN_single_step(NULL);
 	return 0;
 }
 
@@ -460,7 +465,7 @@ SN_cont(void)
 						"target signaled by SIGINT");
 
 			/* single step and wait */
-			SN_single_step();
+			SN_single_step(NULL);
 			my_waitid(FALSE, TRUE, SIGTRAP);
 
 			/* again!! */
@@ -475,18 +480,26 @@ SN_cont(void)
 			return ptrace(PTRACE_CONT, SN_info.pid, 0, 0);
 
 		/* single step then continue */
-		SN_single_step();
+		bool_t cont_stop = FALSE;
+		SN_single_step(&cont_stop);
+		if (cont_stop)
+			return 0;
 	}
 
 	return 0;
 }
 
+
+
+static int
+signal_inst(uintptr_t eip, uint32_t terminal_mark, int signum);
 /* 
  * return value: if signal arise, return signal number
  * in normal case, return 0
  */
 static int
-single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
+single_step_syscall(uintptr_t eip, uintptr_t new_eip,
+		struct user_regs_struct * psaved_regs)
 {
 	assert(psaved_regs != NULL);
 	ptrace_set_regset(SN_info.pid, psaved_regs);
@@ -507,11 +520,30 @@ single_step_syscall(uintptr_t new_eip, struct user_regs_struct * psaved_regs)
 				"should be syscall %d, not %d", nr, (int)psaved_regs->eax);
 
 	/* check for no-signal-mark */
-	mark = read_u32_from_log();
-	if (mark != NO_SIGNAL_MARK)
-		THROW_FATAL(EXP_UNIMPLEMENTED, "syscall is broken by signal, "
-				"unimplemented");
+	mark = readahead_log_ptr();
+	if (mark != NO_SIGNAL_MARK) {
+		if (mark != SIGNAL_MARK)
+			THROW_FATAL(EXP_LOG_CORRUPTED, "mark 0x%x follows syscall mark",
+					mark);
+		struct {
+			uint32_t mark;
+			uintptr_t addr;
+			uint32_t terminal_mark;
+			int signal;
+		} marks;
+		readahead_log(&marks, sizeof(marks));
+		TRACE(SIGNAL, "syscall %d (0x%x) broken by signal %d\n", nr, eip,
+				marks.signal);
+		TRACE(SIGNAL, "addr=0x%x, terminal_mark=0x%x, signal=%d\n",
+				marks.addr, marks.terminal_mark, marks.signal);
+		signal_inst(eip, marks.terminal_mark, marks.signal);
+		return marks.signal;
+	}
+
 	TRACE(XGDBSERVER, "NO_SIGNAL_MARK ok\n");
+
+	/* consume mark */
+	mark = read_u32_from_log();
 	
 	/* redirect eip */
 	ptrace_set_eip(SN_info.pid, (uintptr_t)(SN_info.syscall_helper));
@@ -614,8 +646,12 @@ signal_inst(uintptr_t eip, uint32_t terminal_mark, int signum)
 }
 
 static int
-SN_single_step(void)
+SN_single_step(bool_t * cont_stop)
 {
+
+	if (cont_stop != NULL)
+		*cont_stop = FALSE;
+
 	struct user_regs_struct saved_regs;
 	ptrace_get_regset(SN_info.pid, &saved_regs);
 
@@ -637,6 +673,7 @@ SN_single_step(void)
 		if (marks.addr == eip) {
 			VERBOSE(XGDBSERVER, "inst 0x%x interrupted by signal %d\n",
 					eip, marks.signum);
+			*cont_stop = TRUE;
 			return signal_inst(eip, marks.terminal_mark, marks.signum);
 		}
 	}
@@ -645,6 +682,9 @@ SN_single_step(void)
 		setup_sighandler();
 		ptrace_get_regset(SN_info.pid, &saved_regs);
 		eip = saved_regs.eip;
+
+		if (cont_stop != NULL)
+			*cont_stop = TRUE;
 	}
 
 	ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.is_branch_inst);
@@ -688,10 +728,11 @@ SN_single_step(void)
 			new_eip = eip + 7;
 		}
 
-		int signum = single_step_syscall(new_eip, &saved_regs);
-		if (signum != 0)
-			THROW_FATAL(EXP_UNIMPLEMENTED, "syscall is broken by signal, "
-					"doesn't support");
+		int signum = single_step_syscall(eip, new_eip, &saved_regs);
+		if (signum != 0) {
+			if (cont_stop != NULL)
+				*cont_stop = TRUE;
+		}
 		return 0;
 	}
 
@@ -709,7 +750,7 @@ SN_ptrace_cont(enum __ptrace_request req, pid_t pid,
 		return ptrace(req, pid, addr, data);
 
 	if (req == PTRACE_SINGLESTEP)
-		return SN_single_step();
+		return SN_single_step(NULL);
 	else
 		return SN_cont();
 }
