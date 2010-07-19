@@ -223,14 +223,29 @@ signal_handler(int num, struct thread_private_data * tpd,
 
 	/* for system call */
 	if (tpd->current_syscall_nr != -1) {
-		assert(tpd->code_cache.current_block->exit_type == EXIT_SYSCALL);
 		TRACE(SIGNAL, "system call %d is broken by signal %d\n",
 				tpd->current_syscall_nr, num);
 		assert(tpd->current_syscall_nr < 0xffff);
-		psc->__esh = tpd->current_syscall_nr;
+		psc->__csh = tpd->current_syscall_nr;
 	} else {
-		psc->__esh = 0xffff;
+		psc->__csh = 0xffff;
 	}
+
+	/* for sigprocmask: we save current unblock mask in sigframe
+	 * and replace unblock sigmask using tpd->sigactions data */
+	psc->__gsh = tpd->unblock_sigmask[0] & 0xffff;
+	psc->__fsh = tpd->unblock_sigmask[0] >> 16;
+	psc->__esh = tpd->unblock_sigmask[1] & 0xffff;
+	psc->__dsh = tpd->unblock_sigmask[1] >> 16;
+
+	tpd->unblock_sigmask[0] =
+		tpd->sigactions[num - 1].sa_mask.sig[0];
+	tpd->unblock_sigmask[1] =
+		tpd->sigactions[num - 1].sa_mask.sig[1];
+
+	/* block current signal */
+	int _num = num - 1;
+	tpd->unblock_sigmask[_num / 64] |= (1UL << (_num % 64));
 }
 
 /* if return 1, sigreturn (or rt_sigreturn) */
@@ -310,7 +325,7 @@ do_arch_wrapper_rt_sighandler(struct pusha_regs * regs)
 	void * eip = (void*)rt_frame->uc.uc_mcontext.ip;
 	void * ori_addr = get_ori_address(tpd->code_cache.current_block,
 			(void *)eip);
-	WARNING(SIGNAL, "rt_frame at %p\n", rt_frame);
+	TRACE(SIGNAL, "rt_frame at %p\n", rt_frame);
 	return common_wrapper_sighandler(rt_frame->sig, rt_frame,
 			sizeof(*rt_frame), tpd, ori_addr, regs,
 			rt_frame->retcode,
@@ -326,10 +341,10 @@ common_wrapper_sigreturn(struct thread_private_data * tpd,
 	tpd->target = (void*)(backup_space[1]);
 
 	TRACE(SIGNAL, "return to ip 0x%lx\n", psc->ip);
-	if (psc->__esh != 0xffff) {
+	if (psc->__csh != 0xffff) {
 		/* resume system call */
-		TRACE(SIGNAL, "resume system call %d\n", psc->__esh);
-		tpd->current_syscall_nr = psc->__esh;
+		TRACE(SIGNAL, "resume system call %d\n", psc->__csh);
+		tpd->current_syscall_nr = psc->__csh;
 		struct {
 			uint32_t mark;
 			uint32_t nr;
@@ -340,6 +355,10 @@ common_wrapper_sigreturn(struct thread_private_data * tpd,
 	} else {
 		tpd->current_syscall_nr = -1;
 	}
+
+	/* restore sigprocmask */
+	tpd->unblock_sigmask[0] = (psc->__fsh << 16) | (psc->__gsh);
+	tpd->unblock_sigmask[1] = (psc->__dsh << 16) | (psc->__esh);
 }
 
 void

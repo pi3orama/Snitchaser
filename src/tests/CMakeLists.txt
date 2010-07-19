@@ -13,6 +13,7 @@ SET(tests
 	test_sighandler
 	test_sighandler_2
 	test_sigprocmask
+	test_rt_sigaction
 	)
 
 build_interp_tests("${tests}" "")
