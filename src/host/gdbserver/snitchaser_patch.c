@@ -22,6 +22,7 @@
 
 #include <xasm/signal_numbers.h>
 #include <xasm/marks.h>
+#include <xasm/unistd_32.h>
 /* target.h depends on server.h */
 #include "server.h"
 #include "target.h"
@@ -403,6 +404,37 @@ SN_cont(void)
 				DEBUG(XGDBSERVER, "move to signal handler\n");
 				setup_sighandler();
 				return 0;
+			} else if (ptr == SIGRETURN_MARK) {
+
+				/* consume SIGRETURN_MARK */
+				ptr = read_u32_from_log();
+
+				DEBUG(XGDBSERVER, "signal return\n");
+				struct user_regs_struct regs;
+				ptrace_get_regset(SN_info.pid, &regs);
+
+				if ((regs.eip != (intptr_t)SN_info.arch_wrapper_sigreturn) &&
+					(regs.eip != (intptr_t)SN_info.arch_wrapper_rt_sigreturn))
+					THROW_FATAL(EXP_LOG_CORRUPTED,
+							"SIGRETURN_MARK appear but eip incorrect:"
+							" 0x%x, %p, %p\n", (uint32_t)regs.eip,
+							SN_info.arch_wrapper_sigreturn,
+							SN_info.arch_wrapper_rt_sigreturn);
+
+				regs.eip = (intptr_t)SN_info.replay_int80;
+				if (regs.eip == (intptr_t)SN_info.arch_wrapper_sigreturn) {
+					regs.esp += 4;
+					regs.eax = __NR_sigreturn;
+				} else {
+					regs.eax = __NR_rt_sigreturn;
+				}
+				ptrace_set_regset(SN_info.pid, &regs);
+				int err = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+				CTHROW_FATAL(err == 0, EXP_GDBSERVER_ERROR,
+						"PTRACE_SINGLESTEP failed, err=%d", err);
+				my_waitid(TRUE, TRUE, 0);
+				adjust_wait_result(TRUE, TRUE);
+				return 0;
 			} else {
 				THROW_FATAL(EXP_UNIMPLEMENTED,
 						"read from log, next mark is 0x%x",	ptr);
@@ -515,16 +547,25 @@ single_step_syscall(uintptr_t eip, uintptr_t new_eip,
 
 	int nr = read_int_from_log();
 	TRACE(XGDBSERVER, "this is syscall %d\n", nr);
+#if 0
+	/* if the system call is broken by signal, after sigreturn,
+	 * eax will be the return value of the system call, not
+	 * the 'nr'. */
 	if (psaved_regs->eax != nr)
 		THROW_FATAL(EXP_FILE_CORRUPTED,
 				"should be syscall %d, not %d", nr, (int)psaved_regs->eax);
+#endif
 
 	/* check for no-signal-mark */
 	mark = readahead_log_ptr();
 	if (mark != NO_SIGNAL_MARK) {
-		if (mark != SIGNAL_MARK)
-			THROW_FATAL(EXP_LOG_CORRUPTED, "mark 0x%x follows syscall mark",
-					mark);
+		if (mark != SIGNAL_MARK) {
+			if (mark != 0xffffffff)
+				THROW_FATAL(EXP_LOG_CORRUPTED, "mark 0x%x follows syscall mark",
+						mark);
+			else
+				THROW(EXP_LOG_END, "log is end after syscall mark %d", nr);
+		}
 		struct {
 			uint32_t mark;
 			uintptr_t addr;

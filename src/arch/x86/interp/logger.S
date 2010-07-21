@@ -117,7 +117,12 @@ vdso_syscall_entry:
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 
 	UNBLOCK_SIGPROCMASK
+#if 0
+	/* don't call vdso syscall because of signal return:
+	 * we are unable to control esp */
 	call *%fs:OFFSET_REAL_VDSO_SYSCALL_ENTRY
+#endif
+	int $0x80
 	BLOCK_SIGPROCMASK
 
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP

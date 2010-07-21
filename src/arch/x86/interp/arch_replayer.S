@@ -41,6 +41,13 @@ replay_trap:
 	int $0x80
 	nop
 
+.globl replay_int80
+replay_int80:
+	int $0x80
+	movl $1, %eax
+	int $0x80
+	nop
+
 .globl replay_syscall_helper
 replay_syscall_helper:
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP

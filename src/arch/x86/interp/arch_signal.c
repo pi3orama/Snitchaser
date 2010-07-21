@@ -206,9 +206,13 @@ signal_handler(int num, struct thread_private_data * tpd,
 	mark2.frame_size = frame_sz;
 	mark2.handler = (uintptr_t)(act->sa_handler);
 
+#if 0
+	/* don't append buffer here,
+	 * write a patched frame into log */
 	append_buffer(&mark2, sizeof(mark2));
 	append_buffer(frame, frame_sz);
 	flush_logger();
+#endif
 
 	/* for signal handler: we MUST save frame's eip to let sigreturn return to
 	 * correct address when recording.  we also MUST save original eip to
@@ -246,9 +250,15 @@ signal_handler(int num, struct thread_private_data * tpd,
 	/* block current signal */
 	int _num = num - 1;
 	tpd->unblock_sigmask[_num / 64] |= (1UL << (_num % 64));
+
+	/* frame has been patched */
+	append_buffer(&mark2, sizeof(mark2));
+	append_buffer(frame, frame_sz);
+	flush_logger();
+
 }
 
-/* if return 1, sigreturn (or rt_sigreturn) */
+/* if return 1, sigreturn (or rt_sigreturn) (ignore) */
 /* if return 2, terminate */
 static int
 common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
@@ -336,6 +346,14 @@ static void
 common_wrapper_sigreturn(struct thread_private_data * tpd,
 		void * retcode, struct sigcontext * psc)
 {
+	struct {
+		uint32_t mark;
+	} sigreturn_mark = {
+		SIGRETURN_MARK,
+	};
+
+	append_buffer(&sigreturn_mark, sizeof(sigreturn_mark));
+
 	uintptr_t * backup_space = retcode;
 	psc->ip = backup_space[0];
 	tpd->target = (void*)(backup_space[1]);
@@ -349,7 +367,7 @@ common_wrapper_sigreturn(struct thread_private_data * tpd,
 			uint32_t mark;
 			uint32_t nr;
 		} syscall_mark2 = {
-			SYSCALL_MARK, tpd->current_syscall_nr
+			SYSCALL_MARK, tpd->current_syscall_nr,
 		};
 		append_buffer(&syscall_mark2, sizeof(syscall_mark2));
 	} else {

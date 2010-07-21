@@ -18,6 +18,7 @@
 #define SIGNAL_MARK_2	(0x00001205)
 #define SIGNAL_TERMINATE	(0x00001206)
 #define SIGNAL_HANDLER		(0x00001207)
+#define SIGRETURN_MARK		(0x00001208)
 
 /* the address of arch_wrapper_sigreturn and arch_wrapper_rt_sigreturn
  * is signal return marks. */

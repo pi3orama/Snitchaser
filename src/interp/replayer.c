@@ -377,8 +377,12 @@ wait_for_attach(void)
 	info.is_branch_inst = &replay_is_branch_inst;
 	info.replay_nop = &replay_nop;
 	info.replay_trap = &replay_trap;
+	info.replay_int80 = &replay_int80;
 	info.syscall_helper = &replay_syscall_helper;
 	info.get_next_branch = &replay_get_next_branch;
+
+	info.arch_wrapper_sigreturn = &arch_wrapper_sigreturn;
+	info.arch_wrapper_rt_sigreturn = &arch_wrapper_rt_sigreturn;
 
 	sock_send(&info, sizeof(info));
 	

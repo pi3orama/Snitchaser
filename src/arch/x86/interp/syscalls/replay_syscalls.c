@@ -43,7 +43,12 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 	regs->esp = (uintptr_t)(tpd->old_stack_top);
 
 	int nr = sock_recv_int();
+
+#if 0
+	/* if the syscall is broken by signal and resume
+	 * after signal handler, nr != eax */
 	assert(nr == (int)regs->eax);
+#endif
 
 	TRACE(REPLAYER_TARGET, "in replay syscall %d\n", nr);
 
