@@ -19,6 +19,11 @@ SET(SYSCALLS
 	sigprocmask.c
 	rt_sigaction.c
 	nanosleep.c
+	brk.c
+	stat64.c
+	read.c
+	munmap.c
+	futex.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

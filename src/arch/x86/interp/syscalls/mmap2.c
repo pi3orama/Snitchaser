@@ -16,7 +16,6 @@
 #endif
 
 #ifdef POST_LIBRARY
-
 int
 post_mmap2(struct pusha_regs * regs)
 {
@@ -28,11 +27,9 @@ post_mmap2(struct pusha_regs * regs)
 	}
 	return 0;
 }
-
 #endif
 
 #ifdef REPLAY_LIBRARY
-
 int
 replay_mmap2(struct pusha_regs * regs)
 {
@@ -44,9 +41,7 @@ replay_mmap2(struct pusha_regs * regs)
 
 		uint32_t len = regs->ecx;
 		uint32_t prot = regs->edx;
-		if (prot & PROT_EXEC) {
-			prot |= PROT_WRITE;
-		}
+		prot |= PROT_WRITE;
 
 		uint32_t flags = MAP_ANONYMOUS | MAP_FIXED | MAP_PRIVATE;
 
@@ -64,13 +59,15 @@ replay_mmap2(struct pusha_regs * regs)
 			FATAL(LOG_SYSCALL, "mmap2 inconsistency: 0x%lx vs 0x%lx\n",
 					ret, (uintptr_t)(ptr));
 		}
-
 		BUFFER(ptr, len);
+
+		/* reprotect */
+		ret = INTERNAL_SYSCALL_int80(mprotect, 3, ptr, len, regs->edx);
+		assert(ret == 0);
 	}
 
 	return 0;
 }
-
 #endif
 
 // vim:ts=4:sw=4

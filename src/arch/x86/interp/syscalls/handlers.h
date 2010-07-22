@@ -18,6 +18,13 @@ def_complex_handler(rt_sigaction)
 def_handler(nanosleep)
 def_trival_handler(gettid)
 def_trival_handler(tgkill)
+def_handler(brk)
+def_trival_handler(open)
+def_trival_handler(close)
+def_handler(stat64)
+def_handler(read)
+def_handler(munmap)
+def_handler(futex)
 
 // vim:ts=4:sw=4
 

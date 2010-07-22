@@ -86,6 +86,7 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 		finish_syscall_read();
 
 		/* in interp/replayer.c */
+		TRACE(REPLAYER_TARGET, "replay syscall %d over\n", nr);
 		notify_gdbserver();
 	} else {
 		FATAL(REPLAYER_TARGET, "doesn't support syscall %d\n", nr);

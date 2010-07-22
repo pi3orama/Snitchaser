@@ -66,7 +66,12 @@ sock_recv(void * data, size_t len)
 	assert(data != NULL);
 	while (len > 0) {
 		int err = __recv(TARGET_SOCKPAIR_FD, data, len, MSG_WAITALL);
+#if 0
 		assert(err > 0);
+#else
+		if (err < 0)
+			FATAL(SYSTEM, "err = %d\n", err);
+#endif
 		len -= err;
 		data += err;
 	}
