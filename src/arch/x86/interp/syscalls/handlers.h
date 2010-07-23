@@ -25,6 +25,10 @@ def_handler(stat64)
 def_handler(read)
 def_handler(munmap)
 def_handler(futex)
+def_handler(ioctl)
+def_handler(time)
+def_handler(_llseek)
+def_handler(socketcall)
 
 // vim:ts=4:sw=4
 

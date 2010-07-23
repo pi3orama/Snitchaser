@@ -24,6 +24,10 @@ SET(SYSCALLS
 	read.c
 	munmap.c
 	futex.c
+	ioctl.c
+	time.c
+	_llseek.c
+	socketcall.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})
