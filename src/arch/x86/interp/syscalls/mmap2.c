@@ -5,9 +5,11 @@
 
 
 #include "syscall_handler.h"
+#include <linux/fs.h>
 #include <asm/mman.h>
 #include <xasm/syscall.h>
 #include <common/debug.h>
+
 
 #define PTR_CORRECT(ptr)	((uintptr_t)(ptr) < 0xc0000000)
 
@@ -19,12 +21,29 @@
 int
 post_mmap2(struct pusha_regs * regs)
 {
-	TRACE(LOG_SYSCALL, "post mmap2\n");
+	TRACE(LOG_SYSCALL, "post mmap2, eax=0x%x, len=%d\n",
+			regs->eax, regs->ecx);
 	void * ptr = (void*)regs->eax;
 	if (PTR_CORRECT(ptr)) {
 		size_t len = regs->ecx;
-		BUFFER(ptr, len);
+		if ((int)(regs->edi) > 0) {
+			/* this is file mapping */
+			struct stat64 stat;
+			int err = INTERNAL_SYSCALL_int80(fstat64, 2, regs->edi, &stat);
+			assert(err == 0);
+			long long file_size = stat.st_size;
+			long long start_pos = ((unsigned long)(regs->ebp)) * 4096;
+			assert(file_size > start_pos);
+			unsigned long long aval_size = file_size - start_pos;
+			size_t real_size = (len < aval_size) ? (len) : ((size_t)(aval_size));
+			INT_VAL(real_size);
+			BUFFER(ptr, real_size);
+		} else {
+			INT_VAL(len);
+			BUFFER(ptr, len);
+		}
 	}
+	TRACE(LOG_SYSCALL, "end post mmap2\n");
 	return 0;
 }
 #endif
@@ -59,7 +78,9 @@ replay_mmap2(struct pusha_regs * regs)
 			FATAL(LOG_SYSCALL, "mmap2 inconsistency: 0x%lx vs 0x%lx\n",
 					ret, (uintptr_t)(ptr));
 		}
-		BUFFER(ptr, len);
+		size_t real_size;
+		INT_VAL(real_size);
+		BUFFER(ptr, real_size);
 
 		/* reprotect */
 		ret = INTERNAL_SYSCALL_int80(mprotect, 3, ptr, len, regs->edx);

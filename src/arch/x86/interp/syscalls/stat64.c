@@ -5,16 +5,7 @@
 
 #include "syscall_handler.h"
 
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/errno.h>
-#include <linux/file.h>
-#include <linux/highuid.h>
 #include <linux/fs.h>
-#include <linux/namei.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/pagemap.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>

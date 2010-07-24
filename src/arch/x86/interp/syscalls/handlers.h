@@ -30,6 +30,12 @@ def_handler(time)
 def_handler(_llseek)
 def_handler(socketcall)
 def_handler(uname)
+def_handler(mprotect)
+def_handler(fcntl64)
+def_handler(_newselect)
+def_handler(clock_getres)
+def_handler(clock_gettime)
+def_trival_handler(utime)
 
 // vim:ts=4:sw=4
 

@@ -164,7 +164,7 @@ ENDIF(GCC_HAVE_NO_CLOBBER)
 
 # Build types
 SET(MARCH_CFLAGS "-march=${MARCH} -mtune=${MARCH}")
-SET(CMAKE_C_FLAGS "-std=gnu99 -Wall -Wextra -D_GNU_SOURCE ${MARCH_CFLAGS} ${clobbered_flags}" CACHE
+SET(CMAKE_C_FLAGS "-std=gnu99 -Wall -Wextra -D_GNU_SOURCE -fno-stack-protector ${MARCH_CFLAGS} ${clobbered_flags}" CACHE
 	STRING "Flags used by the compiler during all build types." FORCE)
 SET(CMAKE_C_FLAGS_DEBUG "-g -O0 -DSNITCHASER_DEBUG" CACHE
 	STRING "Flags used by the compiler during debug builds." FORCE)

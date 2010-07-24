@@ -29,6 +29,11 @@ SET(SYSCALLS
 	_llseek.c
 	socketcall.c
 	uname.c
+	mprotect.c
+	fcntl64.c
+	_newselect.c
+	clock_getres.c
+	clock_gettime.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})
