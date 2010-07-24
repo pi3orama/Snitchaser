@@ -29,6 +29,7 @@ def_handler(ioctl)
 def_handler(time)
 def_handler(_llseek)
 def_handler(socketcall)
+def_handler(uname)
 
 // vim:ts=4:sw=4
 

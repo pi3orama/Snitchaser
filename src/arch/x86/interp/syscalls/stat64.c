@@ -5,7 +5,6 @@
 
 #include "syscall_handler.h"
 
-
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
