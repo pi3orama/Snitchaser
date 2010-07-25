@@ -45,6 +45,8 @@ def_handler(ugetrlimit)
 def_handler(poll)
 def_handler(pipe)
 def_complex_handler(clone)
+def_handler(waitpid)
+def_trival_handler(writev)
 
 // vim:ts=4:sw=4
 

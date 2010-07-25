@@ -39,6 +39,7 @@ SET(SYSCALLS
 	poll.c
 	pipe.c
 	clone.c
+	waitpid.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})
