@@ -34,6 +34,10 @@ SET(SYSCALLS
 	_newselect.c
 	clock_getres.c
 	clock_gettime.c
+	getcwd.c
+	ugetrlimit.c
+	poll.c
+	pipe.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

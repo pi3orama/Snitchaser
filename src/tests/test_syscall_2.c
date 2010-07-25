@@ -33,7 +33,8 @@ int main()
 	FILE * passwd = fopen("/etc/passwd", "r");
 	assert(passwd != NULL);
 
-	fread(ptr2, ptr->st_size, 1, passwd);
+	int err = fread(ptr2, ptr->st_size, 1, passwd);
+	assert(err == 1);
 	printf("%s\n", ptr2);
 
 	free(ptr2);

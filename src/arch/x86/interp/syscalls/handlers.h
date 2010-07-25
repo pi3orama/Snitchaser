@@ -36,6 +36,14 @@ def_handler(_newselect)
 def_handler(clock_getres)
 def_handler(clock_gettime)
 def_trival_handler(utime)
+def_trival_handler(getuid32)
+def_handler(getcwd)
+def_trival_handler(geteuid32)
+def_trival_handler(getegid32)
+def_trival_handler(getgid32)
+def_handler(ugetrlimit)
+def_handler(poll)
+def_handler(pipe)
 
 // vim:ts=4:sw=4
 
