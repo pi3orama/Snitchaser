@@ -16,6 +16,7 @@ SET(tests
 	test_rt_sigaction
 	test_syscall_2
 	test_fork
+	test_signals
 	)
 
 build_interp_tests("${tests}" "")

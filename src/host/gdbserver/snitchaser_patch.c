@@ -87,10 +87,12 @@ my_waitid(bool_t nowait, bool_t should_trap, int signo)
 	if (should_trap)
 		CTHROW_FATAL(si.si_code == CLD_TRAPPED, EXP_GDBSERVER_ERROR,
 				"waitid error: si.si_code=%d, not CLD_TRAPPED", si.si_code);
-	if (signo != 0)
+	if (signo != 0) {
+		uintptr_t eip = ptrace_get_eip(SN_info.pid);
 		CTHROW_FATAL(si.si_status == signo, EXP_GDBSERVER_ERROR,
-				"waitid error: si.si_status=%d, not %d",
-				si.si_status, signo);
+				"waitid error at 0x%x: si.si_status=%d, not %d",
+				eip, si.si_status, signo);
+	}
 	return si.si_status;
 }
 
@@ -349,6 +351,42 @@ setup_sighandler(void)
 }
 
 static int
+sighandler_return(void)
+{
+	/* consume SIGRETURN_MARK */
+	uint32_t mark = read_u32_from_log();
+	assert(mark == SIGRETURN_MARK);
+
+	VERBOSE(XGDBSERVER, "signal handler return\n");
+	struct user_regs_struct regs;
+	ptrace_get_regset(SN_info.pid, &regs);
+
+	if ((regs.eip != (intptr_t)SN_info.arch_wrapper_sigreturn) &&
+			(regs.eip != (intptr_t)SN_info.arch_wrapper_rt_sigreturn))
+		THROW_FATAL(EXP_LOG_CORRUPTED,
+				"SIGRETURN_MARK appear but eip incorrect:"
+				" 0x%x, %p, %p\n", (uint32_t)regs.eip,
+				SN_info.arch_wrapper_sigreturn,
+				SN_info.arch_wrapper_rt_sigreturn);
+
+	if (regs.eip == (intptr_t)SN_info.arch_wrapper_sigreturn) {
+		regs.esp += 4;
+		regs.eax = __NR_sigreturn;
+	} else {
+		regs.eax = __NR_rt_sigreturn;
+	}
+	regs.eip = (intptr_t)SN_info.replay_int80;
+
+	ptrace_set_regset(SN_info.pid, &regs);
+	int err = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
+	CTHROW_FATAL(err == 0, EXP_GDBSERVER_ERROR,
+			"PTRACE_SINGLESTEP failed, err=%d", err);
+	my_waitid(TRUE, TRUE, 0);
+	adjust_wait_result(TRUE, TRUE);
+	return 0;
+}
+
+static int
 SN_cont(void)
 {
 	TRACE(XGDBSERVER, "ptrace_cont\n");
@@ -405,36 +443,7 @@ SN_cont(void)
 				setup_sighandler();
 				return 0;
 			} else if (ptr == SIGRETURN_MARK) {
-
-				/* consume SIGRETURN_MARK */
-				ptr = read_u32_from_log();
-
-				DEBUG(XGDBSERVER, "signal return\n");
-				struct user_regs_struct regs;
-				ptrace_get_regset(SN_info.pid, &regs);
-
-				if ((regs.eip != (intptr_t)SN_info.arch_wrapper_sigreturn) &&
-					(regs.eip != (intptr_t)SN_info.arch_wrapper_rt_sigreturn))
-					THROW_FATAL(EXP_LOG_CORRUPTED,
-							"SIGRETURN_MARK appear but eip incorrect:"
-							" 0x%x, %p, %p\n", (uint32_t)regs.eip,
-							SN_info.arch_wrapper_sigreturn,
-							SN_info.arch_wrapper_rt_sigreturn);
-
-				regs.eip = (intptr_t)SN_info.replay_int80;
-				if (regs.eip == (intptr_t)SN_info.arch_wrapper_sigreturn) {
-					regs.esp += 4;
-					regs.eax = __NR_sigreturn;
-				} else {
-					regs.eax = __NR_rt_sigreturn;
-				}
-				ptrace_set_regset(SN_info.pid, &regs);
-				int err = ptrace(PTRACE_SINGLESTEP, SN_info.pid, 0, 0);
-				CTHROW_FATAL(err == 0, EXP_GDBSERVER_ERROR,
-						"PTRACE_SINGLESTEP failed, err=%d", err);
-				my_waitid(TRUE, TRUE, 0);
-				adjust_wait_result(TRUE, TRUE);
-				return 0;
+				return sighandler_return();
 			} else {
 				THROW_FATAL(EXP_UNIMPLEMENTED,
 						"read from log, next mark is 0x%x",	ptr);
@@ -703,6 +712,7 @@ SN_single_step(bool_t * cont_stop)
 	 * interrupted by a signal? */
 	/* FIXME */
 	uint32_t mark = readahead_log_ptr();
+	WARNING(XGDBSERVER, "mark=0x%x\n", mark);
 	if (mark == SIGNAL_MARK) {
 		struct {
 			uint32_t signal_mark;
@@ -717,15 +727,19 @@ SN_single_step(bool_t * cont_stop)
 			*cont_stop = TRUE;
 			return signal_inst(eip, marks.terminal_mark, marks.signum);
 		}
-	}
-
-	if (mark == SIGNAL_MARK_2) {
+	} else if (mark == SIGNAL_MARK_2) {
 		setup_sighandler();
 		ptrace_get_regset(SN_info.pid, &saved_regs);
 		eip = saved_regs.eip;
 
 		if (cont_stop != NULL)
 			*cont_stop = TRUE;
+		return 0;
+	} else if (mark == SIGRETURN_MARK) {
+		sighandler_return();
+		if (cont_stop != NULL)
+			*cont_stop = TRUE;
+		return 0;
 	}
 
 	ptrace_set_eip(SN_info.pid, (uintptr_t)SN_info.is_branch_inst);
