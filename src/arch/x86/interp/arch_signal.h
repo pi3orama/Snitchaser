@@ -44,6 +44,9 @@ do_arch_wrapper_rt_sigreturn(void);
 void
 do_arch_wrapper_sigreturn(void);
 
+/* for clone use: restore signal handler and sigprocmask */
+void
+arch_restore_signal(void);
 
 #endif
 

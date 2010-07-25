@@ -16,13 +16,13 @@
 extern int
 pre_log_syscall_int80(struct pusha_regs regs);
 
-extern void
+extern int
 post_log_syscall_int80(struct pusha_regs regs);
 
 extern int
 pre_log_syscall_vdso(struct pusha_regs regs);
 
-extern void
+extern int
 post_log_syscall_vdso(struct pusha_regs regs);
 
 #endif

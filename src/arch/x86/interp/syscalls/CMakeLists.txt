@@ -38,6 +38,7 @@ SET(SYSCALLS
 	ugetrlimit.c
 	poll.c
 	pipe.c
+	clone.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

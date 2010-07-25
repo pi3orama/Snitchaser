@@ -396,6 +396,28 @@ do_arch_wrapper_rt_sigreturn(void)
 			&(rt_frame->uc.uc_mcontext));
 }
 
+void
+arch_restore_signal(void)
+{
+	struct thread_private_data * tpd = get_tpd();
+	int err;
+
+	/* restore all signal handler */
+	for (int i = 1; i <= 64; i++) {
+		if ((i == SIGKILL) || (i == SIGSTOP))
+			continue;
+		err = INTERNAL_SYSCALL_int80(rt_sigaction, 4,
+				i, &(tpd->sigactions[i - 1]), NULL,
+				sizeof(k_sigset_t));
+		assert(err == 0);
+	}
+
+	/* finally, reset sigprocmask */
+	err = INTERNAL_SYSCALL_int80(rt_sigprocmask, 4,
+			SIG_SETMASK, &(tpd->unblock_sigmask), NULL,
+			sizeof(k_sigset_t));
+	assert(err == 0);
+}
 
 // vim:ts=4:sw=4
 

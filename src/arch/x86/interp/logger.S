@@ -92,12 +92,19 @@ int80_syscall_entry:
 
 
 	1: call post_log_syscall_int80
+	cmp $1, %eax
+	je 2f
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 
 	jmpl *%fs:OFFSET_REAL_BRANCH
 	nop
+	2:
+	popf
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	jmpl *%fs:OFFSET_TARGET
 
 .globl vdso_syscall_entry
 vdso_syscall_entry:
@@ -134,12 +141,19 @@ vdso_syscall_entry:
 
 
 	1: call post_log_syscall_vdso
+	cmp $1, %eax
+	je 2f
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 
 	jmpl *%fs:OFFSET_REAL_BRANCH
 	nop
+	2:
+	popf
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	jmpl *%fs:OFFSET_TARGET
 
 /* don't generate executable stack */
 .section        .note.GNU-stack,"",@progbits

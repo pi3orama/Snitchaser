@@ -44,6 +44,7 @@ def_trival_handler(getgid32)
 def_handler(ugetrlimit)
 def_handler(poll)
 def_handler(pipe)
+def_complex_handler(clone)
 
 // vim:ts=4:sw=4
 

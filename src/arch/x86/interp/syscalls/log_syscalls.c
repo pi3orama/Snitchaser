@@ -9,6 +9,7 @@
 #include <xasm/tls.h>
 #include <xasm/marks.h>
 #include <xasm/string.h>
+#include <xasm/unistd.h>
 #include <common/replay/socketpair.h>
 #include <interp/syscall_replayer.h>
 
@@ -38,7 +39,7 @@ pre_log_syscall(struct pusha_regs * regs)
 }
 
 
-static void
+static int
 post_log_syscall(struct pusha_regs * regs)
 {
 	struct thread_private_data * tpd = get_tpd();
@@ -46,18 +47,21 @@ post_log_syscall(struct pusha_regs * regs)
 
 	TRACE(LOG_SYSCALL, "post syscall, eax=%u(0x%x), ebx=%u, eflags=0x%x\n",
 			regs->eax, regs->eax, regs->ebx, regs->eflags);
-	/* put a 'no-signal-mark' */
-	append_buffer_u32(NO_SIGNAL_MARK);
-	/* put regs */
-	struct pusha_regs real_regs = *regs;
-	real_regs.esp = (uintptr_t)(tpd->old_stack_top);
-	append_buffer(&real_regs, sizeof(real_regs));
+
+	/* for 'clone' in child process, don't append buffer */
+	if (!(((nr == __NR_clone) || (nr == __NR_fork)) && (regs->eax == 0))) {
+		/* put a 'no-signal-mark' */
+		append_buffer_u32(NO_SIGNAL_MARK);
+		/* put regs */
+		struct pusha_regs real_regs = *regs;
+		real_regs.esp = (uintptr_t)(tpd->old_stack_top);
+		append_buffer(&real_regs, sizeof(real_regs));
+	}
 
 	tpd->current_syscall_nr = -1;
 
 	if (syscall_table[nr].post_handler) {
-		syscall_table[nr].post_handler(regs);
-		return;
+		return syscall_table[nr].post_handler(regs);
 	} else {
 		FATAL(LOG_SYSCALL, "doesn't support syscall %d\n", nr);
 	}
@@ -69,10 +73,12 @@ pre_log_syscall_int80(struct pusha_regs regs)
 	return pre_log_syscall(&regs);
 }
 
-void
+/* post call: if return 0, record normally.
+ * if return 1, branch to tpd->target, never log. */
+int
 post_log_syscall_int80(struct pusha_regs regs)
 {
-	post_log_syscall(&regs);
+	return post_log_syscall(&regs);
 }
 
 int
@@ -81,10 +87,10 @@ pre_log_syscall_vdso(struct pusha_regs regs)
 	return pre_log_syscall(&regs);
 }
 
-void
+int
 post_log_syscall_vdso(struct pusha_regs regs)
 {
-	post_log_syscall(&regs);
+	return post_log_syscall(&regs);
 }
 
 // vim:ts=4:sw=4
