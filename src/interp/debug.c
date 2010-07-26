@@ -8,8 +8,16 @@
 #include <common/assert.h>
 #include <xasm/utils.h>
 #include <xasm/debug.h>
+#include <xasm/syscall.h>
 #include <stdarg.h>
 #include <unistd.h>
+
+void
+dbg_init(void)
+{
+	INTERNAL_SYSCALL_int80(close, 1, DBG_OUTPUT_FILE_NO);
+	INTERNAL_SYSCALL_int80(dup2, 2, STDERR_FILENO, DBG_OUTPUT_FILE_NO);
+}
 
 void
 dbg_output(enum __debug_level level,
@@ -31,17 +39,17 @@ dbg_output(enum __debug_level level,
 #endif
 
 #ifdef SNITCHASER_DEBUG
-	fdprintf(STDERR_FILENO, "[%s %s@%s:%d]:\t",
+	fdprintf(DBG_OUTPUT_FILE_NO, "[%s %s@%s:%d]:\t",
 			(char*)__debug_component_names[comp],
 			(char*)__debug_level_names[level],
 			func, line);
 #else
-	fdprintf(STDERR_FILENO, "%s:\t", (char*)__debug_level_names[level]);
+	fdprintf(DBG_OUTPUT_FILE_NO, "%s:\t", (char*)__debug_level_names[level]);
 #endif
 
 	va_list ap;
 	va_start(ap, fmt);
-	vfdprintf(STDERR_FILENO, fmt, ap);
+	vfdprintf(DBG_OUTPUT_FILE_NO, fmt, ap);
 	va_end(ap);
 }
 
@@ -49,7 +57,7 @@ void ATTR(noreturn)
 __assert_fail (const char *__assertion, const char *__file,
 		unsigned int __line, const char *__function)
 {
-	fdprintf(STDERR_FILENO, 
+	fdprintf(DBG_OUTPUT_FILE_NO, 
 			"** %s:%d: %s: assertion `%s' failed **\n",
 			__file, __line, __function, __assertion);
 	breakpoint();

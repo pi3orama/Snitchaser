@@ -69,6 +69,7 @@ __attribute__((used, unused, visibility("hidden"))) int
 xmain(volatile struct pusha_regs regs, uintptr_t unused1 ATTR(unused),
 		uintptr_t unused2 ATTR(unused), int argc, char * argv0)
 {
+	dbg_init();
 	relocate_interp();
 	void * oldesp = (void*)stack_top(&regs) + sizeof(uintptr_t) * 2;
 	VERBOSE(LOADER, "oldesp=%p\n", oldesp);

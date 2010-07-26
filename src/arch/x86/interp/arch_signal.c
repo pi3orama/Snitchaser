@@ -235,12 +235,24 @@ signal_handler(int num, struct thread_private_data * tpd,
 		psc->__csh = 0xffff;
 	}
 
+	/* record syscall info and patched ip info log */
+	append_buffer(&mark2, sizeof(mark2));
+	append_buffer(frame, frame_sz);
+	flush_logger();
+
 	/* for sigprocmask: we save current unblock mask in sigframe
 	 * and replace unblock sigmask using tpd->sigactions data */
 	psc->__gsh = tpd->unblock_sigmask[0] & 0xffff;
 	psc->__fsh = tpd->unblock_sigmask[0] >> 16;
 	psc->__esh = tpd->unblock_sigmask[1] & 0xffff;
 	psc->__dsh = tpd->unblock_sigmask[1] >> 16;
+
+	/* we MUST save current_block: if not, when signal raise right
+	 * after sigreturn, current_block will be the last block of signal
+	 * handler, and signal raise at wrong address. */
+	/* ss, es and ds are same */
+	psc->__ssh = ((uintptr_t)tpd->code_cache.current_block) & 0xffff;
+	psc->ss = ((uintptr_t)(tpd->code_cache.current_block) >> 16);
 
 	tpd->unblock_sigmask[0] =
 		tpd->sigactions[num - 1].sa_mask.sig[0];
@@ -250,11 +262,6 @@ signal_handler(int num, struct thread_private_data * tpd,
 	/* block current signal */
 	int _num = num - 1;
 	tpd->unblock_sigmask[_num / 64] |= (1UL << (_num % 64));
-
-	/* frame has been patched */
-	append_buffer(&mark2, sizeof(mark2));
-	append_buffer(frame, frame_sz);
-	flush_logger();
 
 }
 
@@ -377,6 +384,10 @@ common_wrapper_sigreturn(struct thread_private_data * tpd,
 	/* restore sigprocmask */
 	tpd->unblock_sigmask[0] = (psc->__fsh << 16) | (psc->__gsh);
 	tpd->unblock_sigmask[1] = (psc->__dsh << 16) | (psc->__esh);
+
+	/* restore current block */
+	tpd->code_cache.current_block = (void*)((psc->ss << 16) | (psc->__ssh));
+	psc->ss = psc->ds;
 }
 
 void

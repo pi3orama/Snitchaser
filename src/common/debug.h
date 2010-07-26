@@ -136,6 +136,9 @@ __debug_component_levels[NR_DEBUG_COMPONENTS] = {
 #define __NOP	do {} while(0)
 
 extern void
+dbg_init(void);
+
+extern void
 dbg_output(enum __debug_level level,
 #ifdef SNITCHASER_DEBUG
 		enum  __debug_component comp,

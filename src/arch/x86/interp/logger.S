@@ -36,6 +36,8 @@ check_logger_buffer:
 	movl $OFFSET_CURRENT_SIGMASK, %edx; \
 	addl %fs:OFFSET_TLS_BASE, %edx;
 
+
+/* never change anything in memory. see comments in replay_syscalls.c. */
 #define RESET_SIGPROCMASK(type, setoset)	\
 	pushf;									\
 	subl $20, %esp;							\

@@ -573,6 +573,7 @@ kill_child(pid_t child_pid)
 int
 main(int argc, char * argv[])
 {
+	dbg_init();
 	struct opts * opts = parse_args(argc, argv);
 
 	CASSERT(REPLAYER_HOST, file_exist(opts->log_fn),

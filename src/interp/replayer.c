@@ -403,6 +403,7 @@ notify_gdbserver(void)
 __attribute__((used, unused, visibility("hidden"))) void
 replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 {
+	dbg_init();
 	struct thread_private_data * tpd = get_tpd();
 
 	void ** args = tpd->old_stack_top;

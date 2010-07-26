@@ -20,7 +20,7 @@ static void
 print_regs(struct pusha_regs * regs)
 {
 #define print_reg(xx)	\
-	WARNING(REPLAYER_TARGET, #xx "=0x%x\n", regs->xx)
+	VERBOSE(REPLAYER_TARGET, #xx "=0x%x\n", regs->xx)
 
 	print_reg(eflags);
 	print_reg(eax);
@@ -65,17 +65,29 @@ do_replay_syscall_helper(struct pusha_regs * regs)
 	/* sysenter syscall doesn't portect eflags. see entry_32.S
 	 * kernel code */
 	regs->eflags = new_regs.eflags;
+	uint32_t old_eax = regs->eax;
 	regs->eax = new_regs.eax;
 
 	if (memcmp(&new_regs, regs, sizeof(*regs)) != 0) {
-		WARNING(REPLAYER_TARGET,
+		/* see logger.S, RESET_SIGPROCMASK. a signal may raise right after
+		 * the syscall of rt_sigprocmask. in this situation, registers in
+		 * signal frame record sigprocmask's param, but eip is reset to
+		 * the real syscall (see arch_signal.c, signal_handler). Therefore,
+		 * durning replay, when signal return, eip will be reset to the
+		 * real syscall instruction, but registers are kept. */
+		/* NOTICE: after the 'int $0x80' in UNBLOCK_SIGPROCMASK,
+		 * don't touch any memory! this is unrecordable. */
+		VERBOSE(REPLAYER_TARGET,
 				"register set is different from original execution\n");
-		WARNING(REPLAYER_TARGET,
+		VERBOSE(REPLAYER_TARGET,
+				"This is not a problem if we just finish a signal handler\n");
+		VERBOSE(REPLAYER_TARGET,
 				"next eip is 0x%x\n", new_eip);
-		WARNING(REPLAYER_TARGET, "new regs:\n");
+		VERBOSE(REPLAYER_TARGET, "new regs:\n");
 		print_regs(&new_regs);
-		WARNING(REPLAYER_TARGET, "current regs:\n");
+		VERBOSE(REPLAYER_TARGET, "current regs:\n");
 		print_regs(regs);
+		VERBOSE(REPLAYER_TARGET, "old_eax=0x%x\n", old_eax);
 		*regs = new_regs;
 	}
 

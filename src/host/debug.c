@@ -14,6 +14,12 @@
 #include <unistd.h>
 
 void
+dbg_init(void)
+{
+	/* nothing to do */
+}
+
+void
 dbg_output(enum __debug_level level,
 #ifdef SNITCHASER_DEBUG
 		enum __debug_component comp,

@@ -348,6 +348,8 @@ setup_sighandler(void)
 
 	/* set sigtrap wait state */
 	adjust_wait_result(TRUE, TRUE);
+
+	VERBOSE(XGDBSERVER, "transfer to signal handler 0x%x\n", mark.handler);
 }
 
 static int
@@ -582,7 +584,7 @@ single_step_syscall(uintptr_t eip, uintptr_t new_eip,
 			int signal;
 		} marks;
 		readahead_log(&marks, sizeof(marks));
-		TRACE(SIGNAL, "syscall %d (0x%x) broken by signal %d\n", nr, eip,
+		VERBOSE(SIGNAL, "syscall %d (0x%x) broken by signal %d\n", nr, eip,
 				marks.signal);
 		TRACE(SIGNAL, "addr=0x%x, terminal_mark=0x%x, signal=%d\n",
 				marks.addr, marks.terminal_mark, marks.signal);
@@ -684,9 +686,13 @@ signal_inst(uintptr_t eip, uint32_t terminal_mark, int signum)
 
 	/* consume the marks */
 	read_log(&marks, sizeof(marks));
-	assert((marks.addr == eip) &&
-			(marks.terminal_mark == terminal_mark) &&
+	assert((marks.terminal_mark == terminal_mark) &&
 			(marks.signum == signum));
+
+	if (marks.addr != eip) {
+		WARNING(XGDBSERVER, "addrs in mark: 0x%x; current eip is 0x%x\n",
+				marks.addr, eip);
+	}
 
 	/* generate a SIGTRAP then return 0 */
 	/* don't keep eip */
@@ -712,7 +718,6 @@ SN_single_step(bool_t * cont_stop)
 	 * interrupted by a signal? */
 	/* FIXME */
 	uint32_t mark = readahead_log_ptr();
-	WARNING(XGDBSERVER, "mark=0x%x\n", mark);
 	if (mark == SIGNAL_MARK) {
 		struct {
 			uint32_t signal_mark;
