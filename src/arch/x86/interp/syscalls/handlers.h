@@ -48,6 +48,9 @@ def_complex_handler(clone)
 def_handler(waitpid)
 def_trival_handler(writev)
 def_handler(getdents64)
+def_trival_handler(epoll_create)
+def_trival_handler(epoll_ctl)
+def_handler(epoll_wait)
 
 // vim:ts=4:sw=4
 
