@@ -4,6 +4,10 @@
 /*  struct user_regs_struct */
 #include <common/defs.h>
 #include <sys/user.h>
+#ifdef PAGE_SIZE
+# undef PAGE_SIZE
+# define PAGE_SIZE	(4096)
+#endif
 
 /* xmain return stack adjustment value, in dwords */
 

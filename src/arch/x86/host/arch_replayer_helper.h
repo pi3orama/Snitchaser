@@ -7,6 +7,10 @@
 #define X86_ARCH_REPLAYER_H
 
 #include <sys/user.h>
+#ifdef PAGE_SIZE
+# undef PAGE_SIZE
+# define PAGE_SIZE (4096)
+#endif
 #include <xasm/processor.h>
 
 #include <unistd.h>

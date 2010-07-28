@@ -8,7 +8,6 @@
 #include <host/exception.h>
 #include <host/arch_replayer_helper.h>
 
-#include <sys/user.h>
 #include <sys/ptrace.h>
 
 void
