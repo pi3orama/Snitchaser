@@ -81,6 +81,10 @@ struct thread_private_data {
 	int current_syscall_nr;
 	struct thread_private_data * next_tpd;
 
+	/* configurations */
+	bool_t conf_trace_fork;
+	bool_t conf_trace_clone;
+
 	/* access: *fs:(0x3000 - 4); stores: the base (lowest)
 	 * address of the TLS section */
 	void * tls_base;

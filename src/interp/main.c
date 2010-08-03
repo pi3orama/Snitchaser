@@ -25,6 +25,8 @@
 
 #include <interp/arch_signal.h>
 
+#include <interp/configure.h>
+
 /* reexec reset the personality bit ADDR_NO_RANDOMIZE to make sure
  * the process' memory layout is idential */
 static void
@@ -103,6 +105,9 @@ xmain(volatile struct pusha_regs regs, uintptr_t unused1 ATTR(unused),
 	tpd->argp_first = (uintptr_t)argp_first;
 	tpd->argp_last = (uintptr_t)argp_last;
 	assert(argv[argc] == NULL);
+
+	/* retrieve configuration from env */
+	read_conf(oldesp);
 
 	/* for debug use */
 	print_auxv();

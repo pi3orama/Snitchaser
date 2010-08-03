@@ -23,6 +23,8 @@ SET(SRC
 	replayer.c
 	syscall_replayer.h
 	syscall_replayer.c
+	configure.h
+	configure.c
 	)
 ADD_LIBRARY(interp SHARED
 	${SRC})

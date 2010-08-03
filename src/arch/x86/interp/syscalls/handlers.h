@@ -47,6 +47,7 @@ def_handler(pipe)
 def_complex_handler(clone)
 def_handler(waitpid)
 def_trival_handler(writev)
+def_handler(getdents64)
 
 // vim:ts=4:sw=4
 
