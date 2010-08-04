@@ -34,7 +34,7 @@ static void
 print_all_conf(struct thread_private_data * tpd)
 {
 #define bool_conf(a, b)	\
-	TRACE(LOADER, a " = %d\n", tpd->b);
+	VERBOSE(LOADER, a " = %d\n", tpd->b);
 #include <interp/confentries.h>
 #undef bool_conf
 }

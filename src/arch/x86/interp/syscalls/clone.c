@@ -38,6 +38,82 @@
 
 #include <xasm/signal_numbers.h>
 
+static int
+__pre_trace_fork(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	/* don't allow signal arise after fork() */
+	return 2;
+}
+
+static int
+__post_trace_fork(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	int r = regs->eax;
+	if (r != 0)
+		return 0;
+	/* FIXME!! */
+	FATAL(LOG_SYSCALL, "unimplemented\n");
+
+	/* child process:
+	 *
+	 * update tls, remake checkpoint, clear log
+	 * */
+	return 0;
+}
+
+
+static int
+__pre_untrace_fork(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	/* untrace fork allows signal */
+	return 0;
+}
+
+static int
+__post_untrace_fork(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	int r = regs->eax;
+	/* this is parent process */
+	if (r != 0)
+		return 0;
+
+	/* for child process:  */
+
+	/* restore sighandler */
+	arch_restore_signal();
+	/* returns 1: run untraced */
+	return 1;
+}
+
+static int
+__pre_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	FATAL(LOG_SYSCALL, "unimplemented\n");
+	return 0;
+}
+
+static int
+__post_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	FATAL(LOG_SYSCALL, "unimplemented\n");
+	return 0;
+}
+
+
+static int
+__pre_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	FATAL(LOG_SYSCALL, "unimplemented\n");
+	return 0;
+}
+
+static int
+__post_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
+{
+	FATAL(LOG_SYSCALL, "unimplemented\n");
+	return 0;
+}
+
 #ifdef PRE_LIBRARY
 int
 pre_clone(struct pusha_regs * regs)
@@ -65,14 +141,26 @@ pre_clone(struct pusha_regs * regs)
 	 *	addl $8,%esp
 	 *	ret
 	 * * */
-#if 0
-	/* check it is "clone" or "fork" */
-	void * child_stack = (void*)(regs->ebx);
-	uint32_t flags = regs->ecx;
-#endif
+	struct thread_private_data * tpd = get_tpd();
 	uint32_t flags = regs->ebx;
-	if (flags != (CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD))
+	switch (flags) {
+	case (CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD):
+		if (tpd->conf_trace_fork) {
+			return __pre_trace_fork(tpd, regs);
+		} else {
+			return __pre_untrace_fork(tpd, regs);
+		}
+	case (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
+			CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|
+			CLONE_CHILD_CLEARTID):
+		if (tpd->conf_trace_fork) {
+			return __pre_trace_clone(tpd, regs);
+		} else {
+			return __pre_untrace_clone(tpd, regs);
+		}
+	default:
 		FATAL(LOG_SYSCALL, "unimplemented flag: 0x%x\n", flags);
+	}
 	return 0;
 }
 #endif
@@ -81,16 +169,27 @@ pre_clone(struct pusha_regs * regs)
 int
 post_clone(struct pusha_regs * regs)
 {
-	int r = regs->eax;
-	/* this is parent process */
-	if (r != 0)
-		return 0;
-
-	/* for child process:  */
-
-	/* restore sighandler */
-	arch_restore_signal();
-	return 1;
+	struct thread_private_data * tpd = get_tpd();
+	uint32_t flags = regs->ebx;
+	switch (flags) {
+	case (CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD):
+		if (tpd->conf_trace_fork) {
+			return __post_trace_fork(tpd, regs);
+		} else {
+			return __post_untrace_fork(tpd, regs);
+		}
+	case (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
+			CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|
+			CLONE_CHILD_CLEARTID):
+		if (tpd->conf_trace_fork) {
+			return __post_trace_clone(tpd, regs);
+		} else {
+			return __post_untrace_clone(tpd, regs);
+		}
+	default:
+		FATAL(LOG_SYSCALL, "unimplemented flag: 0x%x\n", flags);
+	}
+	return 0;
 }
 #endif
 

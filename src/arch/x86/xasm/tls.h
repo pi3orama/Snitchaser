@@ -104,11 +104,13 @@ extern struct list_head tpd_list_head;
 #endif
 
 
-/* init_tls ans clear_tls should be called
+/* init_tls and clear_tls should be called
  * with thread original stack, not the snitchaser's
  * TLS stack! */
 extern void init_tls(void);
 extern void clear_tls(void);
+/* for trace fork: updates pid and tid, resets logger */
+extern void update_tls(void);
 
 /* only setup the tls area */
 extern void replay_init_tls(int tnr);

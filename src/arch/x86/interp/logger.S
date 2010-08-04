@@ -64,8 +64,11 @@ check_logger_buffer:
 #define UNBLOCK_SIGPROCMASK RESET_SIGPROCMASK(UNBLOCK, SET_EDX_0)
 #define BLOCK_SIGPROCMASK RESET_SIGPROCMASK(BLOCK, SET_EDX_CURRENT_SIGMASK)
 
+/* they are save */
 .globl int80_syscall_entry
+.globl vdso_syscall_entry
 int80_syscall_entry:
+vdso_syscall_entry:
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
 	movl %fs:OFFSET_STACK_TOP, %esp
 	pusha
@@ -74,8 +77,28 @@ int80_syscall_entry:
 	popfl
 	call pre_log_syscall_int80
 	cmp $0, %eax
-	jne 1f
+	je normal_pre_processing
+	cmp $1, %eax
+	je post_processing
+	cmp $2, %eax
+	je nosignal_pre_processing
+	movl $1, %eax
+	int $0x80
 
+nosignal_pre_processing:
+	popf
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	int $0x80
+	movl %esp, %fs:OFFSET_OLD_STACK_TOP
+	movl %fs:OFFSET_STACK_TOP, %esp
+	pusha
+	pushf
+	pushl $0x0202
+	popfl
+	jmp post_processing
+
+normal_pre_processing:
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
@@ -92,22 +115,23 @@ int80_syscall_entry:
 	pushl $0x0202
 	popfl
 
-
-	1: call post_log_syscall_int80
+post_processing:
+	call post_log_syscall_int80
 	cmp $1, %eax
-	je 2f
+	je untrace_post_ret
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 
 	jmpl *%fs:OFFSET_REAL_BRANCH
 	nop
-	2:
+untrace_post_ret:
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_TARGET
 
+#if 0
 .globl vdso_syscall_entry
 vdso_syscall_entry:
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
@@ -156,6 +180,7 @@ vdso_syscall_entry:
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_TARGET
+#endif
 
 /* don't generate executable stack */
 .section        .note.GNU-stack,"",@progbits

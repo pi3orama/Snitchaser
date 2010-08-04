@@ -17,6 +17,12 @@
 #include <xasm/signal_numbers.h>
 
 #ifdef PRE_LIBRARY
+
+/* pre handler:
+ *
+ * returning 1 indicates jmp to post_processing immediately
+ * */
+
 int
 pre_rt_sigaction(struct pusha_regs * regs)
 {
@@ -38,7 +44,7 @@ pre_rt_sigaction(struct pusha_regs * regs)
 	regs->eax = ret;
 	if (ret != 0) {
 		/* nothing to do */
-		return -1;
+		return 1;
 	}
 
 
@@ -50,7 +56,7 @@ pre_rt_sigaction(struct pusha_regs * regs)
 		memcpy(oact, tpd_act, sizeof(*tpd_act));
 
 	if (act == NULL)
-		return -1;
+		return 1;
 
 	/* act not null: reset tpd's sigaction and set real sigaction back */
 	struct k_sigaction real_action;
@@ -81,7 +87,7 @@ pre_rt_sigaction(struct pusha_regs * regs)
 	assert(err == 0);
 	memcpy(tpd_act, &act_backup, sizeof(*tpd_act));
 
-	return -1;
+	return 1;
 }
 
 #endif

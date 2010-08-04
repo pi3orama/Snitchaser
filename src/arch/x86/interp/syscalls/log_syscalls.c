@@ -67,6 +67,12 @@ post_log_syscall(struct pusha_regs * regs)
 	}
 }
 
+/* precall:
+ *
+ * return 0: normal_pre_processing
+ * return 1: post_processing (don't issue the syscall)
+ * return 2: issue syscall, doesn't allow signal
+ * */
 int
 pre_log_syscall_int80(struct pusha_regs regs)
 {

@@ -208,8 +208,8 @@ init_tls(void)
 	struct thread_private_data * tpd = setup_tls_area(n);
 	DEBUG(TLS, "TPD resides at %p\n", tpd);
 
-	tpd->tid = tid;
 	tpd->pid = pid;
+	tpd->tid = tid;
 	tpd->current_syscall_nr = -1;
 	build_tpd(tpd);
 	spin_unlock(&__tls_ctl_lock);
@@ -262,6 +262,25 @@ clear_tls(void)
 	unmap_tpd(tpd);
 	spin_unlock(&__tls_ctl_lock);
 	return;
+}
+
+void
+update_tls(void)
+{
+	spin_lock(&__tls_ctl_lock);
+
+	struct thread_private_data * tpd = get_tpd();
+	pid_t pid, tid;
+	pid = INTERNAL_SYSCALL_int80(getpid, 0);
+	tid = INTERNAL_SYSCALL_int80(gettid, 0);
+	DEBUG(TLS, "update TLS storage: pid=%d, tid=%d\n",
+			tid, pid);
+
+	tpd->pid = pid;
+	tpd->tid = tid;
+#warning FIXME!!!
+
+	spin_unlock(&__tls_ctl_lock);
 }
 
 ATTR(noreturn) void
