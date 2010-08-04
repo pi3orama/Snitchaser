@@ -267,6 +267,8 @@ clear_tls(void)
 void
 update_tls(void)
 {
+	/* reset pid and tid, reset filename of ckpt and log,
+	 * clear (not flush) log data */
 	spin_lock(&__tls_ctl_lock);
 
 	struct thread_private_data * tpd = get_tpd();
@@ -278,7 +280,8 @@ update_tls(void)
 
 	tpd->pid = pid;
 	tpd->tid = tid;
-#warning FIXME!!!
+
+	reset_logger(&tpd->logger, pid, tid);
 
 	spin_unlock(&__tls_ctl_lock);
 }

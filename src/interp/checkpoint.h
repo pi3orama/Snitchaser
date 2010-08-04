@@ -6,10 +6,16 @@
 #ifndef __CHECKPOINT_H
 #define __CHECKPOINT_H
 
-#include <config.h>
-#include <stdint.h>
-#include <interp/logger.h>
-#include <xasm/processor.h>
+#ifndef __KERNEL__
+# include <config.h>
+# include <stdint.h>
+# include <interp/logger.h>
+# include <xasm/processor.h>
+#else
+# include <linux/types.h>
+# include <interp/logger.h>
+# include <xasm/processor.h>
+#endif
 
 #define CKPT_MAGIC	"SNITCHASER CKPT"
 #define CKPT_MAGIC_SZ	(16)

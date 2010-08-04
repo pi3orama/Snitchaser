@@ -9,6 +9,7 @@
 #include <xasm/syscall.h>
 #include <string.h>
 #include <interp/arch_signal.h>
+#include <interp/checkpoint.h>
 
 /* from: linux/sched */
 #define CSIGNAL		0x000000ff	/* signal mask to be sent at exit */
@@ -51,13 +52,13 @@ __post_trace_fork(struct thread_private_data * tpd, struct pusha_regs * regs)
 	int r = regs->eax;
 	if (r != 0)
 		return 0;
-	/* FIXME!! */
-	FATAL(LOG_SYSCALL, "unimplemented\n");
-
 	/* child process:
 	 *
 	 * update tls, remake checkpoint, clear log
 	 * */
+	update_tls();
+	/* generate new checkpoints */
+	fork_make_checkpoint(regs, tpd->target);
 	return 0;
 }
 

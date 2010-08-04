@@ -86,6 +86,14 @@ init_logger(struct tls_logger * logger, int pid, int tid)
 }
 
 void
+reset_logger(struct tls_logger * logger, int pid, int tid)
+{
+	logger->log_buffer_current = logger->log_buffer_start;
+	logger->log_buffer_end = logger->log_buffer_start + MAX_LOGGER_SIZE;
+	reset_fns(logger, pid, tid);
+}
+
+void
 close_logger(struct tls_logger * logger)
 {
 	if (logger->log_buffer_start == NULL)

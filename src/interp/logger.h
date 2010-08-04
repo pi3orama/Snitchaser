@@ -54,6 +54,9 @@ struct log_block_tag {
 extern void
 init_logger(struct tls_logger * tl, int pid, int tid);
 
+extern void
+reset_logger(struct tls_logger * tl, int pid, int tid);
+
 /* close current log: when one thread exit, close its log */
 /* close logger can be called multiple times */
 extern void
