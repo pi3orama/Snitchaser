@@ -18,6 +18,7 @@ SET(tests
 	test_fork
 	test_signals
 	test_threads
+	test_sigbus
 	)
 
 build_interp_tests("${tests}" "")
@@ -71,6 +72,12 @@ SET_PROPERTY(TARGET test_threads
 	APPEND
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so")
 TARGET_LINK_LIBRARIES(test_threads "-lpthread")
+
+
+SET_PROPERTY(TARGET test_sigbus
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
 
 ## SET(CAN_USE_ASSEMBLER TRUE)
 ## ENABLE_LANGUAGE(ASM-S)
