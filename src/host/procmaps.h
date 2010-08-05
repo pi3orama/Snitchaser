@@ -21,7 +21,7 @@ struct proc_mem_region {
 	uintptr_t start;
 	uintptr_t end;
 	uint32_t prot;
-	uint32_t offset;
+	uint64_t offset;
 };
 
 /* if not find, throw an exception */

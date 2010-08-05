@@ -9,7 +9,7 @@
 
 
 #define XSZ	(8192)
-static int i = 0;
+//static int i = 0;
 
 int main()
 {

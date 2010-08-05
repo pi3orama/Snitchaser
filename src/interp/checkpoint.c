@@ -59,7 +59,7 @@ read_procmem_line(char * line, struct mem_region * region, char ** p_fn)
 	int err;
 	int l = 0;
 	char str_prot[5];
-	err = sscanf(line, "%lx-%lx %4s %x %*2x:%*2x %*d %n",
+	err = sscanf(line, "%lx-%lx %4s %llx %*2x:%*2x %*d %n",
 			(long unsigned int *)&region->start,
 			(long unsigned int *)&region->end,
 			str_prot,
@@ -100,12 +100,35 @@ read_procmem_line(char * line, struct mem_region * region, char ** p_fn)
 	return eol + 1;
 }
 
+static uint32_t
+get_aval_size(const char * fn, uint64_t offset, uint32_t desire_size)
+{
+	if ((fn == NULL) || (fn[0] == '\0'))
+		return desire_size;
+	if (fn[0] == '[')
+		return desire_size;
+
+	/* stat the file */
+	struct stat64 st;
+	int err = INTERNAL_SYSCALL_int80(stat64, 2,
+			fn, &st);
+	if (err != 0) {
+		WARNING(CKPT, "failed (%d) stat %s\n", err, fn);
+		return desire_size;
+	}
+
+	/* check size */
+	return (offset + desire_size > (uint64_t)(st.st_size)) ?
+		(st.st_size - offset) :
+		(desire_size);
+}
+
 static void
 append_region(int fd, struct mem_region * region, const char * fn)
 {
 	int err;
 
-	TRACE(CKPT, "append region: 0x%08x-0x%08x:0x%08x:%01x:%s\n", region->start,
+	TRACE(CKPT, "append region: 0x%08x-0x%08x:0x%llx:%01x:%s\n", region->start,
 			region->end, region->offset, region->prot, fn);
 
 	/* write the region structure */
@@ -120,10 +143,24 @@ append_region(int fd, struct mem_region * region, const char * fn)
 
 	/* write the memory image */
 	/* if the memory is mapped from /dev/xxx, don't write it */
-	if (strncmp("/dev", fn, 4) == 0)
+	if (strncmp("/dev", fn, 4) == 0) {
+		/* append a '0' */
+		int region_sz = 0;
+		err = INTERNAL_SYSCALL_int80(write, 3,
+				fd, &region_sz, sizeof(region_sz));
+		assert(err == sizeof(region_sz));
 		return;
+	}
 
+	/* stat target file */
 	int region_sz = region->end - region->start;
+	region_sz = get_aval_size(fn, region->offset, region_sz);
+	TRACE(CKPT, "aval region_sz=%d\n", region_sz);
+
+	err = INTERNAL_SYSCALL_int80(write, 3,
+			fd, &region_sz, sizeof(region_sz));
+	assert(err == sizeof(region_sz));
+
 	/* if the memory is unreadable, mark it readable then remark it back */
 	if (!(region->prot & PROT_READ)) {
 		err = INTERNAL_SYSCALL_int80(mprotect, 3,
@@ -134,7 +171,6 @@ append_region(int fd, struct mem_region * region, const char * fn)
 
 	/* flush this memory region */
 	assert(region->start % PAGE_SIZE == 0);
-	assert(region_sz % PAGE_SIZE == 0);
 	err = INTERNAL_SYSCALL_int80(write, 3,
 			fd, region->start, region_sz);
 	assert(err == region_sz);

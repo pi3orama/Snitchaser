@@ -249,7 +249,7 @@ do_read_ckpt(struct opts * opts)
 	while (*((uint32_t*)(ptr)) != MEM_REGIONS_END_MARK) {
 		struct mem_region * r = ptr;
 		assert(r->end > r->start);
-		printf("%08x-%08x:%08x:%01x %s\n", r->start, r->end,
+		printf("%08x-%08x:%llx:%01x %s\n", r->start, r->end,
 				r->offset, r->prot, r->fn);
 		ptr = next_region(r);
 	}

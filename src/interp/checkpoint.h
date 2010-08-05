@@ -39,14 +39,15 @@ struct mem_region {
 	uintptr_t start;
 	uintptr_t end;
 	uint32_t prot;
-	uint32_t offset;
+	uint64_t offset;
 	unsigned int fn_sz;
 	char fn[];
 };
 
 #define region_sz(r)	((r)->end - (r)->start)
-#define region_data(r)	((void*)((void*)(&(r)[1]) + (r)->fn_sz))
-#define next_region(r)	(region_data(r) + region_sz(r))
+#define region_p_real_sz(r)	((int*)((void*)(&(r)[1]) + (r)->fn_sz))
+#define region_data(r)	((void*)(region_p_real_sz(r)) + sizeof(int))
+#define next_region(r)	((struct mem_region *)(region_data(r) + *region_p_real_sz(r)))
 
 /* MEM_REGIONS_END_MARK should be a number larger than 0xc0000000 and
  * not aligned to PAGE_SIZE */

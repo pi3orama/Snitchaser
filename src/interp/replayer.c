@@ -83,6 +83,11 @@ do_restore_tls_stack(void)
 			FATAL(REPLAYER_TARGET, "unable to find tls stack in ckpt\n");
 
 		skip_nbytes(ckpt_fd, region.fn_sz);
+
+		/* read real region sz */
+		int real_region_sz;
+		read_from_file(ckpt_fd, &real_region_sz, sizeof(real_region_sz));
+
 		TRACE(REPLAYER_TARGET, "compare: 0x%8x-0x%8x %8x-%8x\n", region.start,
 				region.end, (uintptr_t)real_stack_base,
 				(uintptr_t)stack_end);
@@ -93,7 +98,7 @@ do_restore_tls_stack(void)
 					GUARDER_LENGTH);
 			break;
 		}
-		skip_nbytes(ckpt_fd, region_sz(&region));
+		skip_nbytes(ckpt_fd, real_region_sz);
 	}
 
 	TRACE(REPLAYER_TARGET, "tls stack is restored\n");
@@ -105,6 +110,7 @@ restore_tls_stack(
 		const char * exec_fn ATTR_UNUSED,
 		const char * ckpt_fn ATTR_UNUSED)
 {
+	dbg_init();
 	relocate_interp();
 	VERBOSE(REPLAYER_TARGET, "interp_fn: %s\n", interp_fn);
 	VERBOSE(REPLAYER_TARGET, "exec_fn: %s\n", exec_fn);
@@ -212,6 +218,9 @@ do_restore_mem_region(struct mem_region * region,
 	read_from_file(ckpt_fd, fn, region->fn_sz);
 	TRACE(REPLAYER_TARGET, "restoring 0x%8x-0x%8x:%s\n", region->start, region->end,
 			fn);
+	int real_region_sz = 0;
+	read_from_file(ckpt_fd, &real_region_sz, sizeof(real_region_sz));
+	TRACE(REPLAYER_TARGET, "real region sz=%d\n", real_region_sz);
 
 	struct thread_private_data * tpd = get_tpd();
 	if (region->start == (uintptr_t)(TNR_TO_STACK(tpd->tnr) +
@@ -219,14 +228,14 @@ do_restore_mem_region(struct mem_region * region,
 		TRACE(REPLAYER_TARGET, "this is tls stack\n");
 		assert(region->end == (uintptr_t)(TNR_TO_STACK(tpd->tnr) +
 					TLS_STACK_SIZE));
-		skip_nbytes(ckpt_fd, region_sz(region));
+		skip_nbytes(ckpt_fd, real_region_sz);
 		return;
 	}
 
 	/* if it is interp mapping, skip and return */
 	if (strcmp(fn, interp_fn) == 0) {
 		/* this is interp_fn mapping */
-		skip_nbytes(ckpt_fd, region_sz(region));
+		skip_nbytes(ckpt_fd, real_region_sz);
 		return;
 	}
 
@@ -322,14 +331,14 @@ do_restore_mem_region(struct mem_region * region,
 			TRACE(REPLAYER_TARGET, "_end=%p\n", _end);
 
 			skip_nbytes(ckpt_fd,
-					region_sz(region) -
+					real_region_sz -
 					ptr_diff(region->end, _end));
 			read_from_file(ckpt_fd, _end,
 					ptr_diff(region->end, _end));
 		} else {
-			TRACE(REPLAYER_TARGET, "fill %d bytes\n", region_sz(region));
+			TRACE(REPLAYER_TARGET, "fill %d bytes\n", real_region_sz);
 			read_from_file(ckpt_fd, (void*)region->start,
-					region_sz(region));
+					real_region_sz);
 		}
 		fix_unwritable_region(region, FALSE);
 	}

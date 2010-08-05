@@ -75,7 +75,7 @@ read_procmem_line(char * line, struct proc_mem_region * region, char ** p_fn)
 	int err;
 	int l = 0;
 	char str_prot[5];
-	err = sscanf(line, "%lx-%lx %4s %x %*2x:%*2x %*d %n",
+	err = sscanf(line, "%lx-%lx %4s %llx %*2x:%*2x %*d %n",
 			(long unsigned int *)&region->start,
 			(long unsigned int *)&region->end,
 			str_prot,
