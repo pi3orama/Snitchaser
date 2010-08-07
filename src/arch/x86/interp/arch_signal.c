@@ -298,8 +298,14 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 			signal_terminate(num, tpd, ori_addr);
 		}
 	} else {
-		signal_handler(num, tpd, ori_addr, act,
-				frame, frame_sz, regs, retcode, psc);
+		if (!tpd->no_record_signals) {
+			signal_handler(num, tpd, ori_addr, act,
+					frame, frame_sz, regs, retcode, psc);
+		} else {
+			/* see arch_signal.S, 3 means to goto tpd->target */
+			tpd->target = act->sa_handler;
+			return 3;
+		}
 	}
 	return 0;
 }

@@ -85,6 +85,10 @@ struct thread_private_data {
 	bool_t conf_trace_fork;
 	bool_t conf_trace_clone;
 
+	/* for untrace clone, no_record_signals is true */
+	bool_t no_record_signals;
+	int fs_val;
+
 	/* access: *fs:(0x3000 - 4); stores: the base (lowest)
 	 * address of the TLS section */
 	void * tls_base;
@@ -108,6 +112,7 @@ extern struct list_head tpd_list_head;
  * with thread original stack, not the snitchaser's
  * TLS stack! */
 extern void init_tls(void);
+extern struct thread_private_data * create_new_tls(void);
 extern void clear_tls(void);
 /* for trace fork: updates pid and tid, resets logger */
 extern void update_tls(void);

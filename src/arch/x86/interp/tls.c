@@ -95,11 +95,11 @@ clear_tls_slot(int tnr)
 }
 
 /* 
- * setup_tls_area will alloc a new thread_private_data and link it
+ * __setup_tls_area will alloc a new thread_private_data and link it
  * into tpd_list_head
  */
 static struct thread_private_data *
-setup_tls_area(int tnr)
+__setup_tls_area(int tnr)
 {
 	/* setup fs: alloc tls stack and init thread private data */
 	void * stack_base_addr = TNR_TO_STACK(tnr);
@@ -130,17 +130,6 @@ setup_tls_area(int tnr)
 	desc.useable = 1;
 	write_ldt(&desc);
 
-	/* finally load fs */
-	/* segregister: 16bits
-	 * 
-	 * X X X X X X X X X X X X X X X X
-	 *                           ^ ^ ^
-	 *                           | |-|
-	 *        <--- Index ---    TI RPL
-	 * 3 is 'user'
-	 * */
-	asm volatile ("movw %w0, %%fs\n" :: "R" (tnr * 8 + 4 + 3));
-
 	/* set tpd */
 	struct thread_private_data * tpd =
 		(void*)(stack_base_addr) +
@@ -152,10 +141,31 @@ setup_tls_area(int tnr)
 	tpd->stack_top = tpd;
 	tpd->tls_base = stack_base_addr;
 
+	/* segregister: 16bits
+	 * 
+	 * X X X X X X X X X X X X X X X X
+	 *                           ^ ^ ^
+	 *                           | |-|
+	 *        <--- Index ---    TI RPL
+	 * 3 is 'user'
+	 * */
+	tpd->fs_val = (tnr * 8 + 4 + 3);
+	tpd->no_record_signals = FALSE;
+
 	/* link tpd into tpd_list_head */
 	list_add(&tpd->list, &tpd_list_head);
 	return tpd;
 }
+
+static struct thread_private_data *
+setup_tls_area(int tnr)
+{
+	struct thread_private_data * tpd = __setup_tls_area(tnr);
+	/* finally load fs */
+	asm volatile ("movw %w0, %%fs\n" :: "R" (tpd->fs_val));
+	return tpd;
+}
+
 
 static void
 build_tpd(struct thread_private_data * tpd)
@@ -213,6 +223,19 @@ init_tls(void)
 	tpd->current_syscall_nr = -1;
 	build_tpd(tpd);
 	spin_unlock(&__tls_ctl_lock);
+}
+
+/* return the value of 'fs' */
+struct thread_private_data *
+create_new_tls(void)
+{
+	spin_lock(&__tls_ctl_lock);
+	int n = find_set_free_slot();
+	DEBUG(TLS, "TLS slot for currently unused tpd: %d\n", n);
+	struct thread_private_data * tpd = setup_tls_area(n);
+	spin_unlock(&__tls_ctl_lock);
+	/* see setup_tls_area */
+	return tpd;
 }
 
 void

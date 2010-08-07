@@ -25,13 +25,15 @@ arch_wrapper_rt_sighandler:
 	je 1f
 	cmpl $2, %eax
 	je signal_terminate
+	cmpl $3, %eax
+	je jmp_to_target
 	popfl
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_REAL_BRANCH
 	/* if do_arch return non-zero, sigreturn directly */
 	1:
-	/* call sigreturn */
+	/* call rt_sigreturn */
 	popfl
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
@@ -40,6 +42,13 @@ arch_wrapper_rt_sighandler:
 	addl $4, %esp
 	movl $__NR_rt_sigreturn, %eax
 	int $0x80
+	nop
+jmp_to_target:
+	/* jmp to TARGET */
+	popfl
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	jmpl *%fs:OFFSET_TARGET
 	nop
 
 
@@ -57,6 +66,8 @@ arch_wrapper_sighandler:
 	je 1f
 	cmpl $2, %eax
 	je signal_terminate
+	cmpl $3, %eax
+	je jmp_to_target
 	popfl
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
@@ -72,6 +83,7 @@ arch_wrapper_sighandler:
 	movl $__NR_sigreturn, %eax
 	int $0x80
 	nop
+
 
 signal_terminate:
 	movl $1, %eax

@@ -90,7 +90,8 @@ static int
 __pre_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
 	FATAL(LOG_SYSCALL, "unimplemented\n");
-	return 0;
+	/* goto clone specific pre processing, see logger.S */
+	return 3;
 }
 
 static int
@@ -104,8 +105,10 @@ __post_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 static int
 __pre_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
+#warning WORKING HERE!
 	FATAL(LOG_SYSCALL, "unimplemented\n");
-	return 0;
+	/* goto clone specific pre processing, see logger.S */
+	return 3;
 }
 
 static int

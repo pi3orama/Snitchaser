@@ -64,7 +64,7 @@ check_logger_buffer:
 #define UNBLOCK_SIGPROCMASK RESET_SIGPROCMASK(UNBLOCK, SET_EDX_0)
 #define BLOCK_SIGPROCMASK RESET_SIGPROCMASK(BLOCK, SET_EDX_CURRENT_SIGMASK)
 
-/* they are save */
+/* they are same */
 .globl int80_syscall_entry
 .globl vdso_syscall_entry
 int80_syscall_entry:
@@ -82,6 +82,8 @@ vdso_syscall_entry:
 	je post_processing
 	cmp $2, %eax
 	je nosignal_pre_processing
+	cmp $3, %eax
+	je clone_pre_processing
 	movl $1, %eax
 	int $0x80
 
@@ -130,6 +132,10 @@ untrace_post_ret:
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_TARGET
+
+clone_pre_processing:
+	movl $1, %eax
+	int $0x80
 
 #if 0
 .globl vdso_syscall_entry

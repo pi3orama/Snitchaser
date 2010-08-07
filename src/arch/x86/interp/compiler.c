@@ -222,7 +222,6 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 		enum exit_type * pexit_type, uint32_t ** log_phase_retaddr_fix,
 		int * recompile_branch_offset)
 {
-#warning unfinished
 	TRACE(COMPILER, "compiling branch %p\n", branch);
 	/* eat up some prefix */
 	if ((*branch == 0xf2) || (*branch == 0xf3))
@@ -474,7 +473,6 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 
 		case 0xcc: {
 			VERBOSE(COMPILER, "int3 at branch %p\n", branch);
-#warning ignore int3
 			/* this is int3! we must restore eip and move the control back! */
 			/* generate code: pushl $xxxxxxx; ret */
 			/* this is push */

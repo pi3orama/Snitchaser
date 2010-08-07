@@ -56,6 +56,8 @@ compute(void)
 	PRINT(tnr, TNR);
 	PRINT(stack_top, STACK_TOP);
 	PRINT(tls_base, TLS_BASE);
+	PRINT(no_record_signals, NO_RECORD_SIGNALS);
+	PRINT(fs_val, FS_VAL);
 
 	PRINT(current_syscall_nr, CURRENT_SYSCALL_NR);
 	PRINT(next_tpd, NEXT_TPD);
