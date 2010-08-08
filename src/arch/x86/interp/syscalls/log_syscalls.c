@@ -74,7 +74,7 @@ post_log_syscall(struct pusha_regs * regs)
  * return 2: issue syscall, doesn't allow signal
  * */
 int
-pre_log_syscall_int80(struct pusha_regs regs)
+pre_log_syscall_entry(struct pusha_regs regs)
 {
 	return pre_log_syscall(&regs);
 }
@@ -82,19 +82,7 @@ pre_log_syscall_int80(struct pusha_regs regs)
 /* post call: if return 0, record normally.
  * if return 1, branch to tpd->target, never log. */
 int
-post_log_syscall_int80(struct pusha_regs regs)
-{
-	return post_log_syscall(&regs);
-}
-
-int
-pre_log_syscall_vdso(struct pusha_regs regs)
-{
-	return pre_log_syscall(&regs);
-}
-
-int
-post_log_syscall_vdso(struct pusha_regs regs)
+post_log_syscall_entry(struct pusha_regs regs)
 {
 	return post_log_syscall(&regs);
 }

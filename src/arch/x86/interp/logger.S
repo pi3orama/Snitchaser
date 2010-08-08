@@ -75,19 +75,19 @@ vdso_syscall_entry:
 	pushf
 	pushl $0x0202
 	popfl
-	call pre_log_syscall_int80
+	call pre_log_syscall_entry
 	cmp $0, %eax
-	je normal_pre_processing
+	je normal_processing
 	cmp $1, %eax
 	je post_processing
 	cmp $2, %eax
-	je nosignal_pre_processing
+	je nosignal_processing
 	cmp $3, %eax
-	je clone_pre_processing
+	je clone_processing
 	movl $1, %eax
 	int $0x80
 
-nosignal_pre_processing:
+nosignal_processing:
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
@@ -100,7 +100,7 @@ nosignal_pre_processing:
 	popfl
 	jmp post_processing
 
-normal_pre_processing:
+normal_processing:
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
@@ -118,7 +118,7 @@ normal_pre_processing:
 	popfl
 
 post_processing:
-	call post_log_syscall_int80
+	call post_log_syscall_entry
 	cmp $1, %eax
 	je untrace_post_ret
 	popf
@@ -133,60 +133,54 @@ untrace_post_ret:
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_TARGET
 
-clone_pre_processing:
-	movl $1, %eax
+clone_processing:
+	popf
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	int $0x80
-
-#if 0
-.globl vdso_syscall_entry
-vdso_syscall_entry:
-	movl %esp, %fs:OFFSET_OLD_STACK_TOP
-	movl %fs:OFFSET_STACK_TOP, %esp
-	pusha
 	pushf
-	pushl $0x0202
-	popfl
-	call pre_log_syscall_vdso
 	cmp $0, %eax
-	jne 1f
-
-
+	jl clone_failed_processing
+	jne clone_parent_processing
 	popf
-	popa
-	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 
-	UNBLOCK_SIGPROCMASK
-#if 0
-	/* don't call vdso syscall because of signal return:
-	 * we are unable to control esp */
-	call *%fs:OFFSET_REAL_VDSO_SYSCALL_ENTRY
-#endif
-	int $0x80
-	BLOCK_SIGPROCMASK
+	/* this is clone_child processing */
+	/* here, fs has not been changed, we cannot save esp
+	 * in OFFSET_OLD_STACK_TOP. we save it in reg_saver1.
+	 */
 
-	movl %esp, %fs:OFFSET_OLD_STACK_TOP
-	movl %fs:OFFSET_STACK_TOP, %esp
+	movl %esp, %fs:OFFSET_REG_SAVER1
+	/* don't reset stack */
 	pusha
 	pushf
-	pushl $0x0202
-	popfl
-
-
-	1: call post_log_syscall_vdso
-	cmp $1, %eax
-	je 2f
+	call clone_post_child
 	popf
 	popa
+	/* fs should have been changed! */
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
-
+	/* for untraced clone, fs->real_branch should be set
+	 * to 'target' */
 	jmpl *%fs:OFFSET_REAL_BRANCH
 	nop
-	2:
+
+
+clone_parent_processing:
 	popf
-	popa
-	movl %fs:OFFSET_OLD_STACK_TOP, %esp
-	jmpl *%fs:OFFSET_TARGET
-#endif
+	pusha
+	pushf
+	pushl $0x0202
+	popfl
+	call clone_post_parent
+	jmp post_processing
+
+clone_failed_processing:
+	popf
+	pusha
+	pushf
+	pushl $0x0202
+	popfl
+	jmp post_processing
+
 
 /* don't generate executable stack */
 .section        .note.GNU-stack,"",@progbits

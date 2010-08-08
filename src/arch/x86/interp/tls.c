@@ -231,10 +231,9 @@ create_new_tls(void)
 {
 	spin_lock(&__tls_ctl_lock);
 	int n = find_set_free_slot();
-	DEBUG(TLS, "TLS slot for currently unused tpd: %d\n", n);
-	struct thread_private_data * tpd = setup_tls_area(n);
+	VERBOSE(TLS, "TLS slot for currently unused tpd: %d\n", n);
+	struct thread_private_data * tpd = __setup_tls_area(n);
 	spin_unlock(&__tls_ctl_lock);
-	/* see setup_tls_area */
 	return tpd;
 }
 

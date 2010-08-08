@@ -7,9 +7,11 @@
 #include <common/debug.h>
 #include <xasm/tls.h>
 #include <xasm/syscall.h>
-#include <string.h>
+#include <xasm/string.h>
+#include <xasm/utils.h>
 #include <interp/arch_signal.h>
 #include <interp/checkpoint.h>
+#include <linux/futex.h>
 
 /* from: linux/sched */
 #define CSIGNAL		0x000000ff	/* signal mask to be sent at exit */
@@ -106,8 +108,14 @@ static int
 __pre_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
 #warning WORKING HERE!
-	FATAL(LOG_SYSCALL, "unimplemented\n");
+#if 0
 	/* goto clone specific pre processing, see logger.S */
+	struct thread_private_data * new_tpd = create_new_tls();
+	*new_tpd = *tpd;
+	new_tpd->no_record_signals = TRUE;
+	new_tpd->real_branch = tpd->target;
+#endif
+	tpd->futex_data = 0;
 	return 3;
 }
 
@@ -117,6 +125,66 @@ __post_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 	FATAL(LOG_SYSCALL, "unimplemented\n");
 	return 0;
 }
+
+#ifdef POST_LIBRARY
+
+/* they are called in logger.S */
+
+void
+clone_post_parent(void)
+{
+	/* parent should wait on a futex */
+	struct thread_private_data * tpd = get_tpd();
+
+	do {
+		asm volatile ("decl %0\n" : : "m" (tpd->futex_data));
+		int v = tpd->futex_data;
+		if (v == 0)
+			break;
+		tpd->futex_data = -1;
+		int err = INTERNAL_SYSCALL_int80(futex, 6,
+				&tpd->futex_data, FUTEX_WAIT, -1,
+				NULL, NULL, 0);
+	} while (TRUE);
+
+
+	WARNING(LOG_SYSCALL, "I am waken up....\n");
+
+	INTERNAL_SYSCALL_int80(exit, 1, 1);
+	__exit(1);
+}
+
+void
+clone_post_child(void)
+{
+	/* NOTE: we are on the child thread's stack now! */
+	struct thread_private_data * old_tpd = get_tpd();
+
+	/* old_tpd is usable because parent is holding a futex
+	 * and waiting us to wake it up */
+
+	struct thread_private_data * new_tpd = create_new_tls();
+
+#warning WORKING HERE
+	/* copy tpds */
+
+	/* reset fs */
+
+	/* wake it up */
+	asm volatile ("incl %0\n" : : "m" (old_tpd->futex_data));
+	int v = old_tpd->futex_data;
+	if (v != 1) {
+		/* wake it up */
+		old_tpd->futex_data = 1;
+		INTERNAL_SYSCALL_int80(futex, 6,
+				&old_tpd->futex_data, FUTEX_WAKE, 1,
+				NULL, NULL, 0);
+	}
+
+	INTERNAL_SYSCALL_int80(exit, 1, 2);
+	__exit(2);
+}
+#endif
 
 #ifdef PRE_LIBRARY
 int
@@ -144,6 +212,15 @@ pre_clone(struct pusha_regs * regs)
 	 *	call sys_clone
 	 *	addl $8,%esp
 	 *	ret
+	 *
+	 *	and, process.c is compiled with -mregparm=3
+	 *
+	 * so:
+	 * ebx --> clone_flags
+	 * ecx --> newsp
+	 * edx --> parent_tid
+	 * edi --> child_tid
+	 *
 	 * * */
 	struct thread_private_data * tpd = get_tpd();
 	uint32_t flags = regs->ebx;

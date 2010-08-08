@@ -108,16 +108,19 @@ signal_terminate(int num, struct thread_private_data * tpd, void * addr)
 
 	/* see the code of flush logger, we must write this mark by ONCE
 	 * to prevent potential log flush */
-	struct {
-		uint32_t signal_mark;
-		void * addr;
-		uint32_t terminal_mark;
-		int signum;
-	} mark = {
-		SIGNAL_MARK, addr, SIGNAL_TERMINATE, num
-	};
-	append_buffer(&mark, sizeof(mark));
-	flush_logger();
+
+	if (!tpd->no_record_signals) {
+		struct {
+			uint32_t signal_mark;
+			void * addr;
+			uint32_t terminal_mark;
+			int signum;
+		} mark = {
+			SIGNAL_MARK, addr, SIGNAL_TERMINATE, num
+		};
+		append_buffer(&mark, sizeof(mark));
+		flush_logger();
+	}
 
 	/* we needn't clean tls and code cache because all threads
 	 * will be killed by this signal. */

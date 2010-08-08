@@ -88,6 +88,7 @@ struct thread_private_data {
 	/* for untrace clone, no_record_signals is true */
 	bool_t no_record_signals;
 	int fs_val;
+	int futex_data;
 
 	/* access: *fs:(0x3000 - 4); stores: the base (lowest)
 	 * address of the TLS section */
