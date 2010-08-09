@@ -228,7 +228,7 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 {
 	/* WE DON'T NEET TPD HERE! */
 	struct thread_private_data * tpd = get_tpd();
-	WARNING(COMPILER, "compiling branch %p of tid %d\n", branch,
+	TRACE(COMPILER, "compiling branch %p of tid %d\n", branch,
 			tpd->tid);
 	/* eat up some prefix */
 	if ((*branch == 0xf2) || (*branch == 0xf3))
@@ -453,7 +453,7 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 #undef COMP_Jxx
 				case 0x31: {
 					struct thread_private_data * tpd = get_tpd();
-					WARNING(COMPILER, "rdtsc at %p for tid %d\n",
+					TRACE(COMPILER, "rdtsc at %p for tid %d\n",
 							branch, tpd->tid);
 					/* this is rdtsc */
 					template_sym(__rdtsc_template_start);
@@ -584,8 +584,6 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 static struct code_block_t *
 compile_code_block(void * target, struct obj_page_head ** phead)
 {
-	TRACE(COMPILER, "compiling code block %p\n", target);
-	
 	uint8_t patch_code[MAX_PATCH_SIZE];
 	void * branch_start = scan_insts(target);
 	enum exit_type exit_type = EXIT_UNCOND_DIRECT;
@@ -678,7 +676,9 @@ static struct code_block_t *
 do_compile(struct thread_private_data * tpd)
 {
 	/* this is the entry of compiler */
-	TRACE(COMPILER, "finding %p in do_compile, esp=%p\n", tpd->target,
+	TRACE(COMPILER, "thread %d finding %p in do_compile, esp=%p\n",
+			tpd->tid,
+			tpd->target,
 			tpd->old_stack_top);
 	void * target = tpd->target;
 	struct tls_code_cache_t * cache = &(tpd->code_cache);
@@ -728,7 +728,9 @@ do_real_branch(void)
 	}
 #endif
 
-	TRACE(COMPILER, "do_real_branch, dt=%p, ce=%p, lte=%p\n", tpd->target,
+	TRACE(COMPILER, "do_real_branch(%d), dt=%p, ce=%p, lte=%p\n",
+			tpd->tid,
+			tpd->target,
 			cache->current_block->entry,
 			cache->current_block->last_target_entry);
 
@@ -749,7 +751,8 @@ do_real_branch(void)
 	if (cache->current_block->last_target_entry ==
 			tpd->target)
 	{
-		TRACE(COMPILER, "hit the last_target_entry\n");
+		TRACE(COMPILER, "%p (%d) hit the last_target_entry\n",
+				tpd->target, tpd->tid);
 		tpd->target = cache->current_block->last_target_code;
 		return;
 	}
@@ -758,6 +761,9 @@ do_real_branch(void)
 	if (cache->current_block->entry ==
 			tpd->target)
 	{
+
+		TRACE(COMPILER, "%p (%d) hit the current_block->entry\n",
+				tpd->target, tpd->tid);
 		cache->current_block->last_target_entry =
 			cache->current_block->entry;
 		cache->current_block->last_target_code = 

@@ -61,6 +61,7 @@ struct tls_code_cache_t {
 	 * signal handling: When signal arises,
 	 * signal handler can know the exact signal point. */
 	struct code_block_t * current_block;
+	struct code_block_t first_fate_block;
 };
 
 extern void

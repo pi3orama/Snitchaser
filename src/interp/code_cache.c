@@ -19,25 +19,24 @@ clear_code_cache(struct tls_code_cache_t * cc)
 	clear_obj_pages(&(cc->code_blocks));
 }
 
-/* 
- * make sure the current_block not NULL, we can omit
- * an NULL check
- */
-static struct code_block_t first_fake_code_block = {
-	.entry = NULL,
-	.exit_inst_addr = NULL,
-	.ori_code_end = NULL,
-	.last_target_entry = NULL,
-	.last_target_code = first_fake_code_block.__code,
-	.exit_type = EXIT_SYSCALL,
-};
 
 /* the dict and obj pages are reset to NULL when
  * init tls */
 void
 init_code_cache(struct tls_code_cache_t * cc)
 {
-	cc->current_block = &first_fake_code_block;
+
+	/* 
+	 * make sure the current_block not NULL, we can omit
+	 * an NULL check
+	 */
+	cc->first_fate_block.entry = NULL;
+	cc->first_fate_block.exit_inst_addr = NULL;
+	cc->first_fate_block.ori_code_end = NULL;
+	cc->first_fate_block.last_target_entry = NULL;
+	cc->first_fate_block.last_target_code = cc->first_fate_block.__code;
+	cc->first_fate_block.exit_type = EXIT_SYSCALL;
+	cc->current_block = &(cc->first_fate_block);
 }
 
 // vim:ts=4:sw=4

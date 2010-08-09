@@ -100,6 +100,7 @@ static int
 __post_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
 	/* only parents call this func, clone becomes a trivial syscall for them */
+	VERBOSE(LOG_SYSCALL, "clone parent (%d) target: %p\n", tpd->tid, tpd->target);
 	return 0;
 }
 
@@ -196,6 +197,10 @@ clone_post_child(struct pusha_regs regs)
 	clone_build_tpd(tpd);
 	/* make a checkpoint */
 	fork_make_checkpoint(&regs, tpd->target);
+
+	VERBOSE(LOG_SYSCALL, "clone child (%d) target: %p, tpd at %p\n",
+			tpd->tid, tpd->target, tpd);
+
 	return 0;
 }
 
