@@ -446,6 +446,8 @@ SN_cont(void)
 				return 0;
 			} else if (ptr == SIGRETURN_MARK) {
 				return sighandler_return();
+			} else if (ptr == RDTSC_MARK) {
+				/* do nothing */
 			} else {
 				THROW_FATAL(EXP_UNIMPLEMENTED,
 						"read from log, next mark is 0x%x",	ptr);

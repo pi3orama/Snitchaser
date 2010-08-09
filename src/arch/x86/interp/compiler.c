@@ -226,7 +226,10 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 		enum exit_type * pexit_type, uint32_t ** log_phase_retaddr_fix,
 		int * recompile_branch_offset)
 {
-	TRACE(COMPILER, "compiling branch %p\n", branch);
+	/* WE DON'T NEET TPD HERE! */
+	struct thread_private_data * tpd = get_tpd();
+	WARNING(COMPILER, "compiling branch %p of tid %d\n", branch,
+			tpd->tid);
 	/* eat up some prefix */
 	if ((*branch == 0xf2) || (*branch == 0xf3))
 		branch ++;
@@ -449,6 +452,9 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 #undef COMP_Jxx_32b
 #undef COMP_Jxx
 				case 0x31: {
+					struct thread_private_data * tpd = get_tpd();
+					WARNING(COMPILER, "rdtsc at %p for tid %d\n",
+							branch, tpd->tid);
 					/* this is rdtsc */
 					template_sym(__rdtsc_template_start);
 					template_sym(__rdtsc_template_end);
