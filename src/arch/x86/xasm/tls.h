@@ -79,7 +79,6 @@ struct thread_private_data {
 	/* default is -1, set in init_tls */
 	/* also see log_syscall */
 	int current_syscall_nr;
-	struct thread_private_data * next_tpd;
 
 	/* configurations */
 	bool_t conf_trace_fork;
@@ -113,7 +112,14 @@ extern struct list_head tpd_list_head;
  * with thread original stack, not the snitchaser's
  * TLS stack! */
 extern void init_tls(void);
-extern struct thread_private_data * create_new_tls(void);
+
+extern struct thread_private_data *
+create_new_tls(void);
+
+extern void
+copy_init_base_tpd(struct thread_private_data * dst,
+		struct thread_private_data * src);
+
 extern void clear_tls(void);
 /* for trace fork: updates pid and tid, resets logger */
 extern void update_tls(void);

@@ -238,6 +238,39 @@ create_new_tls(void)
 }
 
 void
+copy_init_base_tpd(struct thread_private_data * dst,
+		struct thread_private_data * src)
+{
+#define cpy_field(f)	do {(dst->f) = (src->f);}while(0)
+
+	cpy_field(first_branch);
+	cpy_field(real_branch);
+	cpy_field(int80_syscall_entry);
+	cpy_field(vdso_syscall_entry);
+	cpy_field(real_vdso_syscall_entry);
+
+	memset(&(dst->logger), '\0', sizeof(dst->logger));
+	memset(&(dst->code_cache), '\0', sizeof(dst->code_cache));
+
+	memcpy(dst->block_sigmask, src->block_sigmask,
+			sizeof(dst->block_sigmask));
+	memcpy(dst->unblock_sigmask, src->unblock_sigmask,
+			sizeof(dst->unblock_sigmask));
+	memcpy(dst->current_sigmask, src->current_sigmask,
+			sizeof(dst->current_sigmask));
+	memcpy(dst->sigactions, src->sigactions,
+			sizeof(dst->sigactions));
+
+	cpy_field(argp_first);
+	cpy_field(argp_last);
+	cpy_field(conf_trace_fork);
+	cpy_field(conf_trace_clone);
+	cpy_field(no_record_signals);
+
+#undef cpy_field
+}
+
+void
 replay_init_tls(int tnr)
 {
 	setup_tls_area(tnr);

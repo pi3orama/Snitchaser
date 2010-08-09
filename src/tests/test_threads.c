@@ -3,10 +3,15 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+static int xxx = 0;
+
 static void *
 xthread(void * arg)
 {
 	int s = (int)(arg);
+
+	xxx = s;
+
 	sleep(s);
 	printf("in thread %p\n", arg);
 
@@ -27,6 +32,12 @@ int main()
 	pthread_create(&p2, NULL, xthread, (void*)2);
 	pthread_join(p2, NULL);
 	pthread_join(p1, NULL);
+
+	if (xxx == 2)
+		printf("aaaaaaa %d\n", xxx);
+	else
+		printf("bbbbbbbbbb\n");
+
 	return 0;
 }
 

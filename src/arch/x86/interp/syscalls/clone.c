@@ -107,14 +107,6 @@ __post_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 static int
 __pre_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
-#warning WORKING HERE!
-#if 0
-	/* goto clone specific pre processing, see logger.S */
-	struct thread_private_data * new_tpd = create_new_tls();
-	*new_tpd = *tpd;
-	new_tpd->no_record_signals = TRUE;
-	new_tpd->real_branch = tpd->target;
-#endif
 	tpd->futex_data = 0;
 	return 3;
 }
@@ -122,7 +114,7 @@ __pre_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 static int
 __post_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
-	FATAL(LOG_SYSCALL, "unimplemented\n");
+	/* only parents call this func, clone becomes a trivial syscall for them */
 	return 0;
 }
 
@@ -130,7 +122,7 @@ __post_untrace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 
 /* they are called in logger.S */
 
-void
+int
 clone_post_parent(void)
 {
 	/* parent should wait on a futex */
@@ -148,13 +140,11 @@ clone_post_parent(void)
 	} while (TRUE);
 
 
-	WARNING(LOG_SYSCALL, "I am waken up....\n");
-
-	INTERNAL_SYSCALL_int80(exit, 1, 1);
-	__exit(1);
+	DEBUG(LOG_SYSCALL, "I am waken up....\n");
+	return 0;
 }
 
-void
+int
 clone_post_child(void)
 {
 	/* NOTE: we are on the child thread's stack now! */
@@ -167,8 +157,19 @@ clone_post_child(void)
 
 #warning WORKING HERE
 	/* copy tpds */
+	copy_init_base_tpd(new_tpd, old_tpd);
 
 	/* reset fs */
+	asm volatile ("movw %w0, %%fs"
+			:
+			: "R" (new_tpd->fs_val));
+
+	/* see logger.S, we save esp in old_tpd->reg_saver1 */
+	new_tpd->old_stack_top = (void*)(old_tpd->reg_saver1);
+
+	new_tpd->target = old_tpd->target;
+	new_tpd->real_branch = new_tpd->target;
+
 
 	/* wake it up */
 	asm volatile ("incl %0\n" : : "m" (old_tpd->futex_data));
@@ -180,9 +181,7 @@ clone_post_child(void)
 				&old_tpd->futex_data, FUTEX_WAKE, 1,
 				NULL, NULL, 0);
 	}
-
-	INTERNAL_SYSCALL_int80(exit, 1, 2);
-	__exit(2);
+	return 0;
 }
 #endif
 

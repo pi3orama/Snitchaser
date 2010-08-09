@@ -60,7 +60,6 @@ compute(void)
 	PRINT(fs_val, FS_VAL);
 
 	PRINT(current_syscall_nr, CURRENT_SYSCALL_NR);
-	PRINT(next_tpd, NEXT_TPD);
 }
 
 int main()

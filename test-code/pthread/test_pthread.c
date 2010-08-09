@@ -45,9 +45,14 @@ static void * my_thread(void* str)
 {
 	printf("erron of %ld is %d\n",
 			__gettid(), errno);
-	pthread_setspecific(tsd_key, str + 1);
+	pthread_setspecific(tsd_key, str + 3);
 	for (int i = 0; i < 10; i++) {
 		char * p = pthread_getspecific(tsd_key);
+#if 1
+		if (p[0] == '1') {
+			*(int*)(NULL) = 0;
+		}
+#endif
 		printf("%s\n", (char*)p);
 		sleep(1);
 	}
@@ -80,7 +85,7 @@ int main()
 //	__kill(getpid() + 1, SIGKILL);
 //	__tgkill(getpid(), getpid(), SIGUSR1);
 
-	__exit_group(10);
+//	__exit_group(10);
 
 	pthread_join(th1, NULL);
 	pthread_join(th2, NULL);
