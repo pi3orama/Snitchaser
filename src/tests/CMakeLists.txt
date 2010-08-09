@@ -19,6 +19,7 @@ SET(tests
 	test_signals
 	test_threads
 	test_sigbus
+	test_gscall
 	)
 
 build_interp_tests("${tests}" "")
@@ -75,6 +76,11 @@ TARGET_LINK_LIBRARIES(test_threads "-lpthread")
 
 
 SET_PROPERTY(TARGET test_sigbus
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
+
+SET_PROPERTY(TARGET test_gscall
 	APPEND
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
 	)

@@ -115,7 +115,7 @@ copy_log_phase(uint8_t * target)
  * */
 static uint8_t *
 compile_modrm_target(uint8_t * patch_code, uint8_t * pmodrm,
-		uint32_t ** log_phase_retaddr_fix, int * pinst_sz)
+		uint32_t ** log_phase_retaddr_fix, int * pinst_sz, uint8_t prefix)
 {
 	uint8_t * pos = patch_code;
 	uint8_t modrm = *pmodrm;
@@ -155,6 +155,10 @@ compile_modrm_target(uint8_t * patch_code, uint8_t * pmodrm,
 
 		/* move target to eax */
 		/* use 0x8b: movl (xxx), %exx */
+		/* or: movl %?s:(xxx), %exx */
+		if (prefix != 0)
+			*(pos++) = prefix;
+
 		*(pos++) = 0x8b;
 		uint8_t new_modrm = BUILD_MODRM(
 				MODRM_MOD(modrm),
@@ -391,7 +395,7 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 			int inst_sz = 1;
 			/* first, we move the target address into fs:OFFSET_TARGET */
 			uint8_t * ptr = compile_modrm_target(patch_code, branch + 1,
-					log_phase_retaddr_fix, &inst_sz);
+					log_phase_retaddr_fix, &inst_sz, 0);
 			/* this is 'take effect' section */
 			switch (MODRM_REG(modrm)) {
 				case (2) : {
@@ -449,6 +453,8 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 					template_sym(__rdtsc_template_start);
 					template_sym(__rdtsc_template_end);
 					template_sym(__rdtsc_template_save_return_addr);
+					/* why we lost this statement for half an year? */
+					*pexit_type = EXIT_UNCOND_DIRECT;
 					int tmpsz = template_sz(__rdtsc_template);
 					int patch_sz = tmpsz +
 						real_branch_template_sz;
@@ -502,23 +508,64 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 			template_sym(__vdso_syscall_inst_start);
 			template_sym(__vdso_syscall_inst_end);
 			if (memcmp(branch, __vdso_syscall_inst_start,
-						template_sz(__vdso_syscall_inst)) != 0)
+						template_sz(__vdso_syscall_inst)) == 0)
 			{
-				/* different, we don't know what's that */
-				FATAL(COMPILER, "unknown gs branch instruction at %p: 0x%x 0x%x 0x%x\n",
-						branch, inst1, inst2, inst3);
+				template_sym(__vdso_syscall_template_start);
+				template_sym(__vdso_syscall_template_end);
+				*pexit_type = EXIT_SYSCALL;
+				int patch_sz = template_sz(__vdso_syscall_template);
+				memcpy(patch_code, (void*)__vdso_syscall_template_start,
+						patch_sz);
+				reset_movl_imm(patch_code, (uint32_t)(branch +
+							template_sz(__vdso_syscall_inst)));
+				assert(patch_sz <= MAX_PATCH_SIZE);
+				return patch_sz;
 			}
 
-			template_sym(__vdso_syscall_template_start);
-			template_sym(__vdso_syscall_template_end);
-			*pexit_type = EXIT_SYSCALL;
-			int patch_sz = template_sz(__vdso_syscall_template);
-			memcpy(patch_code, (void*)__vdso_syscall_template_start,
-					patch_sz);
-			reset_movl_imm(patch_code, (uint32_t)(branch +
-						template_sz(__vdso_syscall_inst)));
-			assert(patch_sz <= MAX_PATCH_SIZE);
-			return patch_sz;
+			/* whether it is another 'call *%gs:0xXXX' instruction? */
+			if ((branch[1] == 0xff) && (branch[2] == 0x15)) {
+				/* see calln processing */
+				uint8_t modrm = branch[2];
+				*pexit_type = EXIT_UNCOND_INDIRECT;
+
+				/* 0x65 and 0xff */
+				int inst_sz = 2;
+				/* first, move %gs:(0xXXX) to %fs:OFFSET_TARGET */
+				uint8_t * ptr = compile_modrm_target(patch_code, branch + 2,
+						log_phase_retaddr_fix, &inst_sz, 0x65);
+
+				/* this is 'take effect' section */
+				switch (MODRM_REG(modrm)) {
+				case (2) : {
+					/* this is calln */
+					/* we need to push return address */
+					*(ptr++) = 0x68;
+					*((uint32_t*)(ptr)) = (uint32_t)(branch + inst_sz);
+					ptr += 4;
+					break;
+				}
+				case (4) : {
+					/* this is jmpn */
+					/* do nothing */
+					break;
+				}
+				default: {
+					FATAL(COMPILER, "doesn't support 0xff 0x%x\n", modrm);
+				}
+				}
+
+				/* after that, is 'real branch' */
+				memcpy(ptr, __real_branch_phase_template_start,
+						real_branch_template_sz);
+				return (uintptr_t)(ptr) - (uintptr_t)(patch_code)
+					+ real_branch_template_sz;
+			}
+
+			/* different, we don't know what's that */
+			FATAL(COMPILER, "unknown gs branch instruction at %p:"
+					" 0x%x 0x%x 0x%x\n",
+					branch, inst1, inst2, inst3);
+
 		}
 		default:
 			FATAL(COMPILER, "unknown branch instruction at %p: 0x%x 0x%x 0x%x\n",
@@ -738,6 +785,7 @@ do_replay_is_branch_inst(void)
 		/* whether it is int3 ? */
 		uint8_t opcode = ((uint8_t*)(eip))[0];
 		uint8_t opcode2 = ((uint8_t*)(eip))[1];
+		uint8_t opcode3 = ((uint8_t*)(eip))[2];
 		bool_t is_int3 = (opcode == 0xcc) ? TRUE : FALSE;
 
 		bool_t is_ud = FALSE;
@@ -774,10 +822,12 @@ do_replay_is_branch_inst(void)
 		if (opcode == 0xe8) {
 			is_call = TRUE;
 			call_sz = 5;
-		} else if ((opcode == 0xff) && (MODRM_REG(opcode2) == 2)) {
+		} else if (((opcode == 0xff) && (MODRM_REG(opcode2) == 2)) ||
+				((opcode == 0x65) && (opcode2 == 0xff) && (MODRM_REG(opcode3) == 2) )) {
 			is_call = TRUE;
 			uint8_t patch_code[32];
-			compile_modrm_target(patch_code, eip + 1, NULL, &call_sz);
+			compile_modrm_target(patch_code, eip + 1, NULL, &call_sz, 
+					opcode == 0x65 ? 0x65 : 0);
 		}
 
 		bool_t is_ret = FALSE;
