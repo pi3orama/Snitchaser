@@ -153,14 +153,34 @@ clone_processing:
 	/* don't reset stack */
 	pusha
 	pushf
-	call clone_post_child
+	call clone_post_child_setup_tls
 	popf
 	popa
 	/* fs should have been changed! */
+	/* old_stack_top should have been reset by
+	 * clone_post_child_setup_tls */
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
-	/* for untraced clone, fs->real_branch should be set
-	 * to 'target' */
+
+	/* call clone_post_child in correct stack */
+	movl %esp, %fs:OFFSET_OLD_STACK_TOP
+	movl %fs:OFFSET_STACK_TOP, %esp
+	pusha
+	pushf
+	pushl $0x0202
+	popfl
+	/* defined in interp/logger.c */
+	call clone_post_child
+	cmp $1, %eax
+	je 1f
+	popf
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
 	jmpl *%fs:OFFSET_REAL_BRANCH
+	1:
+	popf
+	popa
+	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+	jmpl *%fs:OFFSET_TARGET
 	nop
 
 

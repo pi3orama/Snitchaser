@@ -91,15 +91,15 @@ __post_untrace_fork(struct thread_private_data * tpd, struct pusha_regs * regs)
 static int
 __pre_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
-	FATAL(LOG_SYSCALL, "unimplemented\n");
-	/* goto clone specific pre processing, see logger.S */
+	/* same as __pre_untrace_clone */
+	tpd->futex_data = 0;
 	return 3;
 }
 
 static int
 __post_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
-	FATAL(LOG_SYSCALL, "unimplemented\n");
+	/* only parents call this func, clone becomes a trivial syscall for them */
 	return 0;
 }
 
@@ -140,12 +140,12 @@ clone_post_parent(void)
 	} while (TRUE);
 
 
-	DEBUG(LOG_SYSCALL, "I am waken up....\n");
+	DEBUG(LOG_SYSCALL, "I am woken up....\n");
 	return 0;
 }
 
 int
-clone_post_child(void)
+clone_post_child_setup_tls(void)
 {
 	/* NOTE: we are on the child thread's stack now! */
 	struct thread_private_data * old_tpd = get_tpd();
@@ -155,7 +155,6 @@ clone_post_child(void)
 
 	struct thread_private_data * new_tpd = create_new_tls();
 
-#warning WORKING HERE
 	/* copy tpds */
 	copy_init_base_tpd(new_tpd, old_tpd);
 
@@ -168,8 +167,6 @@ clone_post_child(void)
 	new_tpd->old_stack_top = (void*)(old_tpd->reg_saver1);
 
 	new_tpd->target = old_tpd->target;
-	new_tpd->real_branch = new_tpd->target;
-
 
 	/* wake it up */
 	asm volatile ("incl %0\n" : : "m" (old_tpd->futex_data));
@@ -183,6 +180,25 @@ clone_post_child(void)
 	}
 	return 0;
 }
+
+int
+clone_post_child(struct pusha_regs regs)
+{
+	struct thread_private_data * tpd = get_tpd();
+	uint32_t flags = regs.ebx;
+	assert(flags == (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
+	            CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|
+	            CLONE_CHILD_CLEARTID));
+	if (!tpd->conf_trace_clone)
+		return 1;
+
+	/* prepare trace clone */
+	clone_build_tpd(tpd);
+	/* make a checkpoint */
+	fork_make_checkpoint(&regs, tpd->target);
+	return 0;
+}
+
 #endif
 
 #ifdef PRE_LIBRARY
@@ -261,7 +277,7 @@ post_clone(struct pusha_regs * regs)
 	case (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
 			CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|
 			CLONE_CHILD_CLEARTID):
-		if (tpd->conf_trace_fork) {
+		if (tpd->conf_trace_clone) {
 			return __post_trace_clone(tpd, regs);
 		} else {
 			return __post_untrace_clone(tpd, regs);

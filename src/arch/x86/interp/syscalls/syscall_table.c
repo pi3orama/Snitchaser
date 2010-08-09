@@ -14,32 +14,32 @@
 #include "protos.h"
 #include "syscall_table.h"
 
-/* trival pre handler: do nothing */
-/* trival post handler: save eax only */
+/* trivial pre handler: do nothing */
+/* trivial post handler: save eax only */
 
 #define __def_handler(name, pre, post, replay) [__NR_##name] = {pre, post, replay},
 
-#define def_trival_handler(name)	__def_handler(name, trival_pre_handler,	\
-	trival_post_handler, trival_replay_handler)
+#define def_trivial_handler(name)	__def_handler(name, trivial_pre_handler,	\
+	trivial_post_handler, trivial_replay_handler)
 
-#define def_handler(name)	__def_handler(name, trival_pre_handler, post_##name, replay_##name)
+#define def_handler(name)	__def_handler(name, trivial_pre_handler, post_##name, replay_##name)
 #define def_complex_handler(name)	__def_handler(name, pre_##name, post_##name, replay_##name)
 
 int
-trival_pre_handler(struct pusha_regs * regs ATTR_UNUSED)
+trivial_pre_handler(struct pusha_regs * regs ATTR_UNUSED)
 {
 	return 0;
 }
 
 int
-trival_post_handler(struct pusha_regs * regs ATTR_UNUSED)
+trivial_post_handler(struct pusha_regs * regs ATTR_UNUSED)
 {
 	/* don't record anything */
 	return 0;
 }
 
 int
-trival_replay_handler(struct pusha_regs * regs ATTR_UNUSED)
+trivial_replay_handler(struct pusha_regs * regs ATTR_UNUSED)
 {
 	return 0;
 }
@@ -50,7 +50,7 @@ struct syscall_table_entry syscall_table[SYSCALL_TABLE_SZ] = {
 
 #undef def_complex_handler
 #undef def_handler
-#undef def_trival_handler
+#undef def_trivial_handler
 #undef __def_handler
 
 // vim:ts=4:sw=4

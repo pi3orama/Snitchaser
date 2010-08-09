@@ -120,6 +120,9 @@ extern void
 copy_init_base_tpd(struct thread_private_data * dst,
 		struct thread_private_data * src);
 
+extern void
+clone_build_tpd(struct thread_private_data * tpd);
+
 extern void clear_tls(void);
 /* for trace fork: updates pid and tid, resets logger */
 extern void update_tls(void);

@@ -271,6 +271,16 @@ copy_init_base_tpd(struct thread_private_data * dst,
 }
 
 void
+clone_build_tpd(struct thread_private_data * tpd)
+{
+	tpd->pid = INTERNAL_SYSCALL_int80(getpid, 0);
+	tpd->tid = INTERNAL_SYSCALL_int80(gettid, 0);
+	init_code_cache(&tpd->code_cache);
+	init_logger(&tpd->logger, tpd->pid, tpd->tid);
+}
+
+
+void
 replay_init_tls(int tnr)
 {
 	setup_tls_area(tnr);

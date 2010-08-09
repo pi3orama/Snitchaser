@@ -48,7 +48,7 @@ static void * my_thread(void* str)
 	pthread_setspecific(tsd_key, str + 3);
 	for (int i = 0; i < 10; i++) {
 		char * p = pthread_getspecific(tsd_key);
-#if 1
+#if 0
 		if (p[0] == '1') {
 			*(int*)(NULL) = 0;
 		}

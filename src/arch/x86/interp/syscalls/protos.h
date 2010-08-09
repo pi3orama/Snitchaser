@@ -16,20 +16,20 @@
 /* provide prototypes of system call handlers */
 
 extern int
-trival_pre_handler(struct pusha_regs * regs);
+trivial_pre_handler(struct pusha_regs * regs);
 
 extern int
-trival_post_handler(struct pusha_regs * regs);
+trivial_post_handler(struct pusha_regs * regs);
 
 extern int
-trival_replay_handler(struct pusha_regs * regs);
+trivial_replay_handler(struct pusha_regs * regs);
 
 #define __def_handler(name, pre, post, replay)	\
 	extern int pre(struct pusha_regs * regs) ATTR_HIDDEN;	\
 	extern int post(struct pusha_regs * regs) ATTR_HIDDEN;	\
 	extern int replay(struct pusha_regs * regs) ATTR_HIDDEN;
 
-#define def_trival_handler(name)
+#define def_trivial_handler(name)
 
 #define def_handler(name)	\
 	extern int post_##name(struct pusha_regs * regs) ATTR_HIDDEN; \
@@ -42,7 +42,7 @@ trival_replay_handler(struct pusha_regs * regs);
 
 #undef def_complex_handler
 #undef def_handler
-#undef def_trival_handler
+#undef def_trivial_handler
 #undef __def_handler
 
 #endif
