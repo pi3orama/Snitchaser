@@ -94,6 +94,9 @@ struct thread_private_data {
 	void * tls_base;
 };
 
+extern void
+unset_share_context(void);
+
 extern struct list_head tpd_list_head;
 
 #define TLS_STACK_SIZE		(0x3000)

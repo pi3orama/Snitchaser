@@ -32,10 +32,29 @@ spin_lock(struct spinlock_t * lock)
 }
 
 static __AI void
+spin_lock_fake(struct spinlock_t * lock)
+{
+	raw_spin_lock_fake(&lock->raw_lock);
+}
+
+static __AI void
 spin_unlock(struct spinlock_t * lock)
 {
 	assert(raw_spin_is_locked_by_value(
 				raw_spin_unlock(&lock->raw_lock)));
+}
+
+static __AI void
+spin_unlock_fake(struct spinlock_t * lock)
+{
+	raw_spin_unlock_fake(&lock->raw_lock);
+}
+
+
+static __AI int
+spin_is_locked(struct spinlock_t * lock)
+{
+	return raw_spin_is_locked(&lock->raw_lock);
 }
 
 #endif

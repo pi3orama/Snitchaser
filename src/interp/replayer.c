@@ -413,6 +413,7 @@ __attribute__((used, unused, visibility("hidden"))) void
 replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 {
 	dbg_init();
+	unset_share_context();
 	struct thread_private_data * tpd = get_tpd();
 
 	void ** args = tpd->old_stack_top;

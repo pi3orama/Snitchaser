@@ -329,6 +329,7 @@ fork_make_checkpoint(struct pusha_regs * regs, void * eip)
 	assert(pid >= 0);
 
 	if (pid == 0) {
+		unset_share_context();
 		do_make_checkpoint(regs, eip);
 		__exit(0);
 	}

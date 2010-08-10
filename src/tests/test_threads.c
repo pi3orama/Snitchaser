@@ -33,6 +33,12 @@ int main()
 	pthread_join(p2, NULL);
 	pthread_join(p1, NULL);
 
+	pthread_create(&p1, NULL, xthread, (void*)3);
+	pthread_create(&p2, NULL, xthread, (void*)4);
+	pthread_join(p2, NULL);
+	pthread_join(p1, NULL);
+
+
 	if (xxx == 2)
 		printf("aaaaaaa %d\n", xxx);
 	else

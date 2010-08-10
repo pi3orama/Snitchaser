@@ -40,9 +40,43 @@ LIST_HEAD(tpd_list_head);
 #define SZ_MAP	(MAX_THREADS / sizeof(uint32_t))
 static uint32_t thread_map[SZ_MAP];
 
+static bool_t
+tls_in_shared_context = TRUE;
+
+
+void
+unset_share_context(void)
+{
+	tls_in_shared_context = FALSE;
+}
+
+void
+lock_tls(void)
+{
+	if (!tls_in_shared_context) {
+		spin_lock_fake(&__tls_ctl_lock);
+	} else {
+		spin_lock(&__tls_ctl_lock);
+	}
+}
+
+void
+unlock_tls(void)
+{
+	if (!tls_in_shared_context) {
+		spin_unlock_fake(&__tls_ctl_lock);
+	} else {
+		spin_unlock(&__tls_ctl_lock);
+	}
+}
+
+/* 
+ * find_set_free_slot shoule be called at lock context
+ */
 static int
 find_set_free_slot(void)
 {
+	assert(spin_is_locked(&__tls_ctl_lock));
 	for (int i = 0; i < (int)SZ_MAP; i++) {
 		if (thread_map[i] != 0xffffffff) {
 			int n = i * 32 + last_0_pos(thread_map[i]);
@@ -97,10 +131,15 @@ clear_tls_slot(int tnr)
 /* 
  * __setup_tls_area will alloc a new thread_private_data and link it
  * into tpd_list_head
+ *
+ * __setup_tls_area shoule be called at lock context
  */
 static struct thread_private_data *
 __setup_tls_area(int tnr)
 {
+
+	assert(spin_is_locked(&__tls_ctl_lock));
+
 	/* setup fs: alloc tls stack and init thread private data */
 	void * stack_base_addr = TNR_TO_STACK(tnr);
 
@@ -160,6 +199,7 @@ __setup_tls_area(int tnr)
 static struct thread_private_data *
 setup_tls_area(int tnr)
 {
+	assert(spin_is_locked(&__tls_ctl_lock));
 	struct thread_private_data * tpd = __setup_tls_area(tnr);
 	/* finally load fs */
 	asm volatile ("movw %w0, %%fs\n" :: "R" (tpd->fs_val));
@@ -191,49 +231,37 @@ build_tpd(struct thread_private_data * tpd)
 }
 
 void
-lock_tls(void)
-{
-	spin_lock(&__tls_ctl_lock);
-}
-
-void
-unlock_tls(void)
-{
-	spin_unlock(&__tls_ctl_lock);
-}
-
-void
 init_tls(void)
 {
-	spin_lock(&__tls_ctl_lock);
 	int pid, tid;
 	pid = INTERNAL_SYSCALL_int80(getpid, 0);
 	tid = INTERNAL_SYSCALL_int80(gettid, 0);
 	DEBUG(TLS, "init TLS storage: pid=%d, tid=%d\n",
 			tid, pid);
 
+	lock_tls();
 	int n = find_set_free_slot();
 	DEBUG(TLS, "TLS slot: %d\n", n);
 
 	struct thread_private_data * tpd = setup_tls_area(n);
 	DEBUG(TLS, "TPD resides at %p\n", tpd);
+	unlock_tls();
 
 	tpd->pid = pid;
 	tpd->tid = tid;
 	tpd->current_syscall_nr = -1;
 	build_tpd(tpd);
-	spin_unlock(&__tls_ctl_lock);
 }
 
 /* return the value of 'fs' */
 struct thread_private_data *
 create_new_tls(void)
 {
-	spin_lock(&__tls_ctl_lock);
+	lock_tls();
 	int n = find_set_free_slot();
 	VERBOSE(TLS, "TLS slot for currently unused tpd: %d\n", n);
 	struct thread_private_data * tpd = __setup_tls_area(n);
-	spin_unlock(&__tls_ctl_lock);
+	unlock_tls();
 	return tpd;
 }
 
@@ -283,7 +311,9 @@ clone_build_tpd(struct thread_private_data * tpd)
 void
 replay_init_tls(int tnr)
 {
+	lock_tls();
 	setup_tls_area(tnr);
+	unlock_tls();
 }
 
 static void
@@ -308,7 +338,6 @@ unmap_tpd(struct thread_private_data * tpd)
 void
 clear_tls(void)
 {
-	spin_lock(&__tls_ctl_lock);
 	struct thread_private_data * tpd = get_tpd();
 	unsigned int tnr = tpd->tnr;
 	void * stack_base = get_tls_base();
@@ -318,14 +347,15 @@ clear_tls(void)
 
 	clear_tls_slot(tnr);
 	/* unmap this tls */
+	lock_tls();
 	list_del(&tpd->list);
+	unlock_tls();
 
 	/* unmap pages from stack_base to stack_base + TLS_STACK_SIZE */
 	/* 
 	 * FIXME: after tpd structure unmapped, the stack becomes invalidated.
 	 */
 	unmap_tpd(tpd);
-	spin_unlock(&__tls_ctl_lock);
 	return;
 }
 
@@ -334,7 +364,6 @@ update_tls(void)
 {
 	/* reset pid and tid, reset filename of ckpt and log,
 	 * clear (not flush) log data */
-	spin_lock(&__tls_ctl_lock);
 
 	struct thread_private_data * tpd = get_tpd();
 	pid_t pid, tid;
@@ -347,8 +376,6 @@ update_tls(void)
 	tpd->tid = tid;
 
 	reset_logger(&tpd->logger, pid, tid);
-
-	spin_unlock(&__tls_ctl_lock);
 }
 
 ATTR(noreturn) void
@@ -365,8 +392,8 @@ unmap_tpds_pages(void)
 {
 	struct thread_private_data * pos = NULL, *n;
 	struct thread_private_data * my_tpd = get_tpd();
-	lock_tls();
 
+	lock_tls();
 	list_for_each_entry_safe(pos, n, &tpd_list_head, list) {
 		/* remove tls pages */
 		unmap_tpd_pages(pos);
@@ -375,7 +402,6 @@ unmap_tpds_pages(void)
 			unmap_tpd(pos);
 		}
 	}
-
 	unlock_tls();
 }
 

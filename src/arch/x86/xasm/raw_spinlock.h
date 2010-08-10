@@ -49,6 +49,13 @@ raw_spin_lock(struct raw_spinlock_t * lock)
 }
 
 
+static __AI void
+raw_spin_lock_fake(struct raw_spinlock_t * lock)
+{
+	lock->lock = 1;
+}
+
+
 /* return value is the original valued */
 static __AI int
 raw_spin_unlock(struct raw_spinlock_t * lock)
@@ -62,6 +69,13 @@ raw_spin_unlock(struct raw_spinlock_t * lock)
 			);
 	return ret;
 }
+
+static __AI void
+raw_spin_unlock_fake(struct raw_spinlock_t * lock)
+{
+	lock->lock = 0;
+}
+
 
 static __AI int
 raw_spin_is_locked_by_value(int val)
