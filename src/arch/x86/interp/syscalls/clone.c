@@ -127,7 +127,7 @@ clone_post_parent(void)
 {
 	/* parent should wait on a futex */
 	struct thread_private_data * tpd = get_tpd();
-	VERBOSE(LOG_SYSCALL, "clone_post_parent: %d: %p\n", tpd->tid, tpd->target);
+	DEBUG(LOG_SYSCALL, "clone_post_parent: %d: %p\n", tpd->tid, tpd->target);
 
 	do {
 		asm volatile ("decl %0\n" : : "m" (tpd->futex_data));
