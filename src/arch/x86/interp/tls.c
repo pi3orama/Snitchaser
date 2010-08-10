@@ -102,7 +102,7 @@ write_ldt(struct user_desc * desc)
 }
 
 static void
-clear_tls_slot(int tnr)
+clear_tls_slot(unsigned int tnr)
 {
 	int nr = tnr / 32;
 	int n = tnr % 32;
@@ -138,7 +138,7 @@ clear_tls_slot(int tnr)
  * __setup_tls_area shoule be called at lock context
  */
 static struct thread_private_data *
-__setup_tls_area(int tnr)
+__setup_tls_area(unsigned int tnr)
 {
 
 	assert(spin_is_locked(&__tls_ctl_lock));
@@ -200,7 +200,7 @@ __setup_tls_area(int tnr)
 }
 
 static struct thread_private_data *
-setup_tls_area(int tnr)
+setup_tls_area(unsigned int tnr)
 {
 	assert(spin_is_locked(&__tls_ctl_lock));
 	struct thread_private_data * tpd = __setup_tls_area(tnr);
@@ -312,7 +312,7 @@ clone_build_tpd(struct thread_private_data * tpd)
 
 
 void
-replay_init_tls(int tnr)
+replay_init_tls(unsigned int tnr)
 {
 	lock_tls();
 	setup_tls_area(tnr);
@@ -332,7 +332,7 @@ unmap_tpd(struct thread_private_data * tpd)
 	assert(spin_is_locked(&__tls_ctl_lock));
 	int err;
 	/* release build don't use tnr */
-	int tnr ATTR(unused) = tpd->tnr;
+	unsigned int tnr ATTR(unused) = tpd->tnr;
 	err = INTERNAL_SYSCALL_int80(munmap, 2,
 			tpd->tls_base, TLS_STACK_SIZE);
 	assert(err == 0);

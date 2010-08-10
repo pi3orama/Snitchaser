@@ -131,7 +131,7 @@ extern void clear_tls(void);
 extern void update_tls(void);
 
 /* only setup the tls area */
-extern void replay_init_tls(int tnr);
+extern void replay_init_tls(unsigned int tnr);
 
 extern void lock_tls(void);
 extern void unlock_tls(void);
