@@ -865,6 +865,9 @@ do_replay_is_branch_inst(void)
 void
 do_replay_get_next_branch(void)
 {
+
+	TRACE(REPLAYER_TARGET, "in do_replay_get_next_branch\n");
+
 	void * eip;
 	eip = (void*)sock_recv_ptr();
 

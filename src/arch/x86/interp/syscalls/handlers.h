@@ -52,6 +52,7 @@ def_trivial_handler(epoll_create)
 def_trivial_handler(epoll_ctl)
 def_handler(epoll_wait)
 def_trivial_handler(set_robust_list)
+def_trivial_handler(madvise)
 
 // vim:ts=4:sw=4
 

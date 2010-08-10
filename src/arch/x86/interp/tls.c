@@ -109,11 +109,14 @@ clear_tls_slot(int tnr)
 	thread_map[nr] = unset_bit_n(thread_map[nr], n);
 
 	/* clear the ldt slot */
-	/* clear 'fs' */
-	asm volatile ("movw %w0, %%fs\n"
-			:
-			: "R" (0)
-			: "memory");
+	struct thread_private_data * tpd = get_tpd();
+	if (tpd->tnr == tnr) {
+		/* clear 'fs' */
+		asm volatile ("movw %w0, %%fs\n"
+				:
+				: "R" (0)
+				: "memory");
+	}
 	struct user_desc desc;
 	/* this is an 'empty' desc */
 	desc.entry_number = tnr;
@@ -326,6 +329,7 @@ unmap_tpd_pages(struct thread_private_data * tpd)
 static void
 unmap_tpd(struct thread_private_data * tpd)
 {
+	assert(spin_is_locked(&__tls_ctl_lock));
 	int err;
 	/* release build don't use tnr */
 	int tnr ATTR(unused) = tpd->tnr;
@@ -333,6 +337,7 @@ unmap_tpd(struct thread_private_data * tpd)
 			tpd->tls_base, TLS_STACK_SIZE);
 	assert(err == 0);
 	DEBUG(TLS, "tls for tnr=%d is cleared\n", tnr);
+	clear_tls_slot(tnr);
 }
 
 void
@@ -344,18 +349,18 @@ clear_tls(void)
 	assert((uint32_t)stack_base == (uint32_t)TNR_TO_STACK(tnr));
 
 	unmap_tpd_pages(tpd);
-
-	clear_tls_slot(tnr);
 	/* unmap this tls */
 	lock_tls();
 	list_del(&tpd->list);
-	unlock_tls();
 
 	/* unmap pages from stack_base to stack_base + TLS_STACK_SIZE */
 	/* 
 	 * FIXME: after tpd structure unmapped, the stack becomes invalidated.
 	 */
 	unmap_tpd(tpd);
+
+	unlock_tls();
+
 	return;
 }
 

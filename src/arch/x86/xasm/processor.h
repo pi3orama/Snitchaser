@@ -125,7 +125,7 @@ restore_reg_state(struct reg_state * p, struct pusha_regs * r,
 	r->eflags = u->eflags;
 	r->esp = u->esp;
 
-#define restorsr(s, r) asm volatile("movl %%eax, %%" #r : : "a" (s))
+#define restorsr(s, r) asm volatile("movw %%ax, %%" #r : : "a" (s & 0xffff))
 #if 0
 	restorsr(u->xcs, cs);
 	restorsr(u->xds, ds);
@@ -164,7 +164,10 @@ build_reg_state(struct reg_state * p, struct pusha_regs * r,
 	u->eflags = r->eflags;
 	u->esp = r->esp;
 
-#define readsr(d, r) asm volatile("movl %%" #r ", %%eax" : "=a" (d))
+#define readsr(d, r) do { \
+	asm volatile("movw %%" #r ", %%ax" : "=a" (d));\
+	(d) &= 0xffff; \
+} while (0)
 	readsr(u->xcs, cs);
 	readsr(u->xds, ds);
 	readsr(u->xes, es);

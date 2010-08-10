@@ -422,6 +422,7 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 	const char * ckpt_fn = args[2];
 
 	VERBOSE(REPLAYER_TARGET, "interp_fn: %s\n", interp_fn);
+
 	VERBOSE(REPLAYER_TARGET, "exec_fn: %s\n", exec_fn);
 	VERBOSE(REPLAYER_TARGET, "ckpt_fn: %s\n", ckpt_fn);
 
@@ -429,6 +430,7 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 	/* it will expand the heap and maps the pages */
 	int err = INTERNAL_SYSCALL_int80(brk, 1, ckpt_head.brk);
 	assert((uintptr_t)err == ckpt_head.brk);
+
 
 	/* load each memory region */
 	struct mem_region region;
@@ -480,7 +482,6 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 
 	/* setup function pointers */
 	/* FIXME which function? */
-
 	/* registers have been set */
 	wait_for_attach();
 }

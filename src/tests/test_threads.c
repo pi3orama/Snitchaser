@@ -15,12 +15,6 @@ xthread(void * arg)
 	sleep(s);
 	printf("in thread %p\n", arg);
 
-	asm volatile (
-			"movl $1, %eax\n"
-			"movl $1, %ebx\n"
-			"int $0x80\n"
-			);
-
 	pthread_exit((void*)s);
 	return NULL;
 }
