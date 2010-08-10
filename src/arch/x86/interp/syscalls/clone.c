@@ -100,7 +100,6 @@ static int
 __post_trace_clone(struct thread_private_data * tpd, struct pusha_regs * regs)
 {
 	/* only parents call this func, clone becomes a trivial syscall for them */
-	VERBOSE(LOG_SYSCALL, "clone parent (%d) target: %p\n", tpd->tid, tpd->target);
 	return 0;
 }
 
@@ -128,6 +127,7 @@ clone_post_parent(void)
 {
 	/* parent should wait on a futex */
 	struct thread_private_data * tpd = get_tpd();
+	VERBOSE(LOG_SYSCALL, "clone_post_parent: %d: %p\n", tpd->tid, tpd->target);
 
 	do {
 		asm volatile ("decl %0\n" : : "m" (tpd->futex_data));
@@ -171,7 +171,7 @@ clone_post_child_setup_tls(void)
 
 	/* wake it up */
 	asm volatile ("incl %0\n" : : "m" (old_tpd->futex_data));
-	int v = old_tpd->futex_data;
+	volatile int v = old_tpd->futex_data;
 	if (v != 1) {
 		/* wake it up */
 		old_tpd->futex_data = 1;
@@ -271,6 +271,7 @@ int
 post_clone(struct pusha_regs * regs)
 {
 	struct thread_private_data * tpd = get_tpd();
+	TRACE(LOG_SYSCALL, "post_clone: %d: %p\n", tpd->tid, tpd->target);
 	uint32_t flags = regs->ebx;
 	switch (flags) {
 	case (CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD):
