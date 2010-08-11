@@ -63,7 +63,7 @@ read_head(struct checkpoint_head * head, int fd)
 }
 
 static void
-do_restore_tls_stack(void)
+do_restore_tls_stack(int sckpt_fd)
 {
 	int tnr = ckpt_head.tnr;
 
@@ -77,16 +77,16 @@ do_restore_tls_stack(void)
 
 	while (TRUE) {
 		struct mem_region region;
-		read_from_file(ckpt_fd, &region, sizeof(region));
+		read_from_file(sckpt_fd, &region, sizeof(region));
 
 		if (region.start == MEM_REGIONS_END_MARK)
 			FATAL(REPLAYER_TARGET, "unable to find tls stack in ckpt\n");
 
-		skip_nbytes(ckpt_fd, region.fn_sz);
+		skip_nbytes(sckpt_fd, region.fn_sz);
 
 		/* read real region sz */
 		int real_region_sz;
-		read_from_file(ckpt_fd, &real_region_sz, sizeof(real_region_sz));
+		read_from_file(sckpt_fd, &real_region_sz, sizeof(real_region_sz));
 
 		TRACE(REPLAYER_TARGET, "compare: 0x%8x-0x%8x %8x-%8x\n", region.start,
 				region.end, (uintptr_t)real_stack_base,
@@ -94,11 +94,11 @@ do_restore_tls_stack(void)
 		if ((region.start == (uintptr_t)real_stack_base) &&
 				(region.end == (uintptr_t)stack_end)) {
 			/* we find it! */
-			read_from_file(ckpt_fd, real_stack_base, TLS_STACK_SIZE -
+			read_from_file(sckpt_fd, real_stack_base, TLS_STACK_SIZE -
 					GUARDER_LENGTH);
 			break;
 		}
-		skip_nbytes(ckpt_fd, real_region_sz);
+		skip_nbytes(sckpt_fd, real_region_sz);
 	}
 
 	TRACE(REPLAYER_TARGET, "tls stack is restored\n");
@@ -108,28 +108,40 @@ __attribute__((used, unused, visibility("hidden"))) void
 restore_tls_stack(
 		const char * interp_fn ATTR_UNUSED,
 		const char * exec_fn ATTR_UNUSED,
-		const char * ckpt_fn ATTR_UNUSED)
+		const char * ckpt_fn ATTR_UNUSED,
+		const char * sckpt_fn ATTR_UNUSED)
 {
 	dbg_init();
 	relocate_interp();
 	VERBOSE(REPLAYER_TARGET, "interp_fn: %s\n", interp_fn);
 	VERBOSE(REPLAYER_TARGET, "exec_fn: %s\n", exec_fn);
 	VERBOSE(REPLAYER_TARGET, "ckpt_fn: %s\n", ckpt_fn);
+	VERBOSE(REPLAYER_TARGET, "sckpt_fn: %s\n", sckpt_fn);
 
 	ckpt_fd = INTERNAL_SYSCALL_int80(open, 2,
 			ckpt_fn, O_RDONLY);
-	CASSERT(REPLAYER_TARGET, ckpt_fd > 0, "open %s failed: %d\n", ckpt_fn, ckpt_fd);
+	CASSERT(REPLAYER_TARGET, ckpt_fd > 0, "open %s (ckpt) failed: %d\n",
+			ckpt_fn, ckpt_fd);
 
-	read_head(&ckpt_head, ckpt_fd);
+	int sckpt_fd = INTERNAL_SYSCALL_int80(open, 2,
+			sckpt_fn, O_RDONLY);
+	CASSERT(REPLAYER_TARGET, sckpt_fd > 0, "open %s (sckpt) failed: %d\n",
+			sckpt_fn, sckpt_fd);
+
+	read_head(&ckpt_head, sckpt_fd);
 
 	/* restore tls */
-	int offset = INTERNAL_SYSCALL_int80(lseek, 3, ckpt_fd, 0, SEEK_CUR);
+	int offset = INTERNAL_SYSCALL_int80(lseek, 3, sckpt_fd, 0, SEEK_CUR);
 	CASSERT(REPLAYER_TARGET, offset >= 0, "lseek failed\n");
 
-	do_restore_tls_stack();
+	do_restore_tls_stack(sckpt_fd);
 
-	int err = INTERNAL_SYSCALL_int80(lseek, 3, ckpt_fd, offset, SEEK_SET);
-	CASSERT(REPLAYER_TARGET, err >= 0, "revert file pos failed\n");
+	/* close sckpt */
+	int err = INTERNAL_SYSCALL_int80(close, 1, sckpt_fd);
+	CASSERT(REPLAYER_TARGET, err == 0, "close sckpt failed: %d\n", err);
+
+	err = INTERNAL_SYSCALL_int80(lseek, 3, ckpt_fd, offset, SEEK_SET);
+	CASSERT(REPLAYER_TARGET, err >= 0, "revert file pos failed: %d\n", err);
 }
 
 /* make all exec section writable */
@@ -420,11 +432,13 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 	const char * interp_fn = args[0];
 	const char * exec_fn = args[1];
 	const char * ckpt_fn = args[2];
+	const char * sckpt_fn = args[3];
 
 	VERBOSE(REPLAYER_TARGET, "interp_fn: %s\n", interp_fn);
 
 	VERBOSE(REPLAYER_TARGET, "exec_fn: %s\n", exec_fn);
 	VERBOSE(REPLAYER_TARGET, "ckpt_fn: %s\n", ckpt_fn);
+	VERBOSE(REPLAYER_TARGET, "sckpt_fn: %s\n", sckpt_fn);
 
 	/* restore brk */
 	/* it will expand the heap and maps the pages */

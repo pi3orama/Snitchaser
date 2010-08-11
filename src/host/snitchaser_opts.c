@@ -22,13 +22,15 @@ static char args_doc[] =
 static struct argp_option options[] = {
 	{"libinterpso",	'i', "libinterpso", 0,
 		"the file of desired libinterp.so", 0},
-	{"ckptfn",		'c', "checkpoint filename", 0,
+	{"ckptfn",		'c', "checkpoint-filename", 0,
 		"set name of checkpoint file", 0},
+	{"sckptfn",		's', "state-checkpoint-filename", 0,
+		"name of state checkpoint file", 0},
 	{"readckpt",	'r', NULL, 0,
 		"don't run target exec, only read and check ckpt", 0},
-	{"logfn",		'l', "log filename", 0,
+	{"logfn",		'l', "log-filename", 0,
 		"set name of log file", 0},
-	{"outlogfn",	'o', "output log filename", 0,
+	{"outlogfn",	'o', "output-log-filename", 0,
 		"set name of output log file", 0},
 	/* gdbserver options */
 
@@ -48,6 +50,7 @@ static struct argp_option options[] = {
 
 static struct opts opts = {
 	.ckpt_fn	= NULL,
+	.sckpt_fn	= NULL,
 	.read_ckpt	= 0,
 	.gdbserver_debug 		= 0,
 	.gdbserver_remote_debug = 0,
@@ -67,6 +70,9 @@ parse_opt(int key, char *arg, struct argp_state *state ATTR(unused))
 		return 0;
 	case 'c':
 		opts.ckpt_fn = arg;
+		return 0;
+	case 's':
+		opts.sckpt_fn = arg;
 		return 0;
 	case 'm':
 		opts.gdbserver_comm = arg;

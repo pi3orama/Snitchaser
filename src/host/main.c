@@ -96,7 +96,7 @@ get_full_name(const char * fn)
 	return full_name;
 }
 
-static struct checkpoint_head *
+static void
 check_header(void * ptr)
 {
 	struct checkpoint_head * phead = ptr;
@@ -110,7 +110,7 @@ check_header(void * ptr)
 	VERBOSE(REPLAYER_HOST, "pid=%d\n", phead->pid);
 	VERBOSE(REPLAYER_HOST, "tid=%d\n", phead->tid);
 
-	return phead;
+	return;
 }
 
 static void
@@ -135,18 +135,25 @@ check_ckpt(struct checkpoint_head * phead, void * boundry)
 }
 
 static struct checkpoint_head *
-map_ckpt(const char * filename)
+map_ckpt(const char * filename, bool_t only_head)
 {
 	assert(filename != NULL);
 	int fd = open(filename, O_RDONLY);
 	assert(fd > 0);
+	
 
-	/* the length of ckpt */
-	struct stat st;
-	int err = fstat(fd, &st);
-	assert(err == 0);
+	size_t sz;
+	if (only_head) {
+		sz = sizeof(struct checkpoint_head);
+	} else {
+		/* the length of ckpt */
+		struct stat st;
+		int err = fstat(fd, &st);
+		assert(err == 0);
 
-	size_t sz = st.st_size;
+		sz = st.st_size;
+	}
+
 	if (sz < sizeof(struct checkpoint_head))
 		THROW_FATAL(EXP_WRONG_CKPT, "ckpt corrupted: too small");
 	void * ptr = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -154,8 +161,10 @@ map_ckpt(const char * filename)
 	assert(ptr != NULL);
 	close(fd);
 	
-	struct checkpoint_head * phead = check_header(ptr);
-	check_ckpt(phead, ptr + sz);
+	struct checkpoint_head * phead = ptr;
+	check_header(phead);
+	if (!only_head)
+		check_ckpt(phead, ptr + sz);
 
 	return phead;
 }
@@ -242,7 +251,7 @@ compare_section(uintptr_t start, uintptr_t end, pid_t pid, void * ref)
 static void
 do_read_ckpt(struct opts * opts)
 {
-	struct checkpoint_head * phead = map_ckpt(opts->ckpt_fn);
+	struct checkpoint_head * phead = map_ckpt(opts->ckpt_fn, FALSE);
 	void * ckpt_regions = &phead[1];
 
 	void * ptr = ckpt_regions;
@@ -299,9 +308,10 @@ do_recover(struct opts * opts)
 	catch_var(char **, envs, NULL);
 	define_exp(exp);
 	TRY(exp) {
-		struct checkpoint_head * phead = map_ckpt(opts->ckpt_fn);
+		struct checkpoint_head * phead = map_ckpt(opts->sckpt_fn, TRUE);
+		struct checkpoint_head * xphead = map_ckpt(opts->ckpt_fn, FALSE);
 
-		void * ckpt_regions = &phead[1];
+		void * ckpt_regions = &xphead[1];
 
 		struct mem_region * stack_region = find_region(ckpt_regions,
 				"[stack]");
@@ -437,7 +447,10 @@ do_recover(struct opts * opts)
 		 * full filename of libinterp.so;
 		 * full filename of executable;
 		 * full filename of checkpoint;
+		 * full filename of scheckpoint
 		 * */
+		uintptr_t pos_sckpt_fn = ptrace_push(target_pid,
+				opts->sckpt_fn, strlen(opts->sckpt_fn) + 1);
 		uintptr_t pos_ckpt_fn = ptrace_push(target_pid,
 				opts->ckpt_fn, strlen(opts->ckpt_fn) + 1);
 		uintptr_t pos_exec_fn;
@@ -452,6 +465,7 @@ do_recover(struct opts * opts)
 				opts->interp_so_full_name,
 				strlen(opts->interp_so_full_name) + 1);
 
+		ptrace_push(target_pid, &pos_sckpt_fn, sizeof(pos_sckpt_fn));
 		ptrace_push(target_pid, &pos_ckpt_fn, sizeof(pos_ckpt_fn));
 		ptrace_push(target_pid, &pos_exec_fn, sizeof(pos_exec_fn));
 		ptrace_push(target_pid, &pos_interp_fn, sizeof(pos_interp_fn));
@@ -585,7 +599,6 @@ main(int argc, char * argv[])
 
 	open_log(opts->log_fn);
 
-
 	/* check opts */
 	TRACE(REPLAYER_HOST, "target checkpoint: %s\n", opts->ckpt_fn);
 
@@ -595,6 +608,12 @@ main(int argc, char * argv[])
 			"interp so file (-i) %s doesn't exist\n", opts->interp_so_fn);
 	CASSERT(REPLAYER_HOST, opts->gdbserver_comm != NULL,
 			"doesn't set gdbserver COMM using '-m'\n");
+	CASSERT(REPLAYER_HOST, ((opts->sckpt_fn == NULL) ||
+				(file_exist(opts->sckpt_fn))),
+			"sckpt %s doesn't exist\n", opts->sckpt_fn);
+
+	if (opts->sckpt_fn == NULL)
+		opts->sckpt_fn = opts->ckpt_fn;
 
 	catch_var(const char *, interp_so_full_name, NULL);
 	define_exp(exp);
