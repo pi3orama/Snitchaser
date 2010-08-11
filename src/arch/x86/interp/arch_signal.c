@@ -162,9 +162,7 @@ signal_terminate(int num, struct thread_private_data * tpd, void * addr,
 	assert(err == 0);
 
 	/* raise the signal again */
-	WARNING(SIGNAL, "will kill the whole thread group...\n");
-
-	err = INTERNAL_SYSCALL_int80(kill, 2, tpd->pid, num);
+	err = INTERNAL_SYSCALL_int80(tgkill, 3, tpd->pid, tpd->tid, num);
 	FATAL(SIGNAL, "We shouldn't get here!!!\n");
 	INTERNAL_SYSCALL_int80(exit, 1, -1);
 	/* never return */
@@ -175,7 +173,7 @@ signal_stop(int num, struct thread_private_data * tpd)
 {
 	WARNING(SIGNAL, "stopped by signal %d\n", num);
 	/* kill itself by an SIGSTOP: */
-	int err = INTERNAL_SYSCALL_int80(kill, 2, tpd->pid, SIGSTOP);
+	int err = INTERNAL_SYSCALL_int80(tgkill, 3, tpd->pid, tpd->tid, SIGSTOP);
 	assert(err == 0);
 }
 

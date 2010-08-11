@@ -47,7 +47,6 @@ pre_rt_sigaction(struct pusha_regs * regs)
 		return 1;
 	}
 
-
 	/* collect information and sigaction back */
 	struct thread_private_data * tpd = get_tpd();
 	struct k_sigaction * tpd_act = &(tpd->sigactions[sig - 1]);
