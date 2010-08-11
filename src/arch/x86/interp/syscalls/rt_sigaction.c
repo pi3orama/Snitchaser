@@ -86,6 +86,8 @@ pre_rt_sigaction(struct pusha_regs * regs)
 	assert(err == 0);
 	memcpy(tpd_act, &act_backup, sizeof(*tpd_act));
 
+	sync_sighandler(sig);
+
 	return 1;
 }
 

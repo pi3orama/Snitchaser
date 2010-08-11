@@ -179,6 +179,9 @@ get_esp(void)
 void
 unmap_tpds_pages(void);
 
+void
+sync_sighandler(int sig);
+
 #endif
 
 // vim:ts=4:sw=4

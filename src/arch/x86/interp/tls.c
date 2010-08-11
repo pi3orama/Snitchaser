@@ -405,5 +405,22 @@ unmap_tpds_pages(void)
 	unlock_tls();
 }
 
+void
+sync_sighandler(int sig)
+{
+	struct thread_private_data * pos = NULL, *n;
+	struct thread_private_data * my_tpd = get_tpd();
+
+	lock_tls();
+	list_for_each_entry_safe(pos, n, &tpd_list_head, list) {
+		if (pos != my_tpd) {
+			memcpy(&(pos->sigactions[sig - 1]),
+					&(my_tpd->sigactions[sig - 1]),
+					sizeof(struct k_sigaction));
+		}
+	}
+	unlock_tls();
+}
+
 // vim:ts=4:sw=4
 
