@@ -57,6 +57,9 @@ init_logger(struct tls_logger * tl, int pid, int tid);
 extern void
 reset_logger(struct tls_logger * tl, int pid, int tid);
 
+extern void
+reset_ckpt_log_names(bool_t dead);
+
 /* close current log: when one thread exit, close its log */
 /* close logger can be called multiple times */
 extern void

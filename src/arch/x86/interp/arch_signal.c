@@ -16,6 +16,7 @@
 #include <xasm/utils.h>
 #include <interp/mm.h>
 #include <interp/logger.h>
+#include <interp/checkpoint.h>
 
 k_sigset_t
 arch_replay_mask_signals(void)
@@ -102,7 +103,8 @@ arch_init_signal(void)
 }
 
 static void
-signal_terminate(int num, struct thread_private_data * tpd, void * addr)
+signal_terminate(int num, struct thread_private_data * tpd, void * addr,
+		struct pusha_regs * regs)
 {
 	WARNING(SIGNAL, "terminated by signaled %d\n", num);
 
@@ -120,6 +122,7 @@ signal_terminate(int num, struct thread_private_data * tpd, void * addr)
 		};
 		append_buffer(&mark, sizeof(mark));
 		flush_logger();
+		make_dead_checkpoint(regs, tpd->target);
 	}
 
 	/* we needn't clean tls and code cache because all threads
@@ -282,7 +285,7 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 	if (act->sa_handler == SIG_IGN) {
 		/* ignore actions:  */
 		if ((num == 32) || (num == 33))
-			signal_terminate(num, tpd, ori_addr);
+			signal_terminate(num, tpd, ori_addr, regs);
 		/* else: sigreturn */
 		return 1;
 	} else if (act->sa_handler == SIG_DFL) {
@@ -298,7 +301,7 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 				(num == SIGCONT)) {
 			return 1;
 		} else {
-			signal_terminate(num, tpd, ori_addr);
+			signal_terminate(num, tpd, ori_addr, regs);
 		}
 	} else {
 		if (!tpd->no_record_signals) {

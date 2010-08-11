@@ -7,6 +7,8 @@
 
 #include <common/debug.h>
 #include <interp/logger.h>
+#include <interp/checkpoint.h>
+#include <xasm/tls.h>
 
 #ifdef PRE_LIBRARY
 int
@@ -15,6 +17,9 @@ pre_exit_group(struct pusha_regs * regs)
 	/* we need to flush log */
 	VERBOSE(SYSTEM, "program call exit_group(%d), flush log\n", regs->ebx);
 	flush_logger();
+
+	struct thread_private_data * tpd = get_tpd();
+	make_dead_checkpoint(regs, tpd->target);
 	return 0;
 }
 #endif

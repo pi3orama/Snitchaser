@@ -41,7 +41,7 @@
  */
 
 static void
-reset_fns(struct tls_logger * logger, int pid, int tid)
+reset_fns(struct tls_logger * logger, int pid, int tid, int dead)
 {
 	struct timeval tv;
 	int err = INTERNAL_SYSCALL_int80(gettimeofday, 2, &tv, NULL);
@@ -57,14 +57,25 @@ reset_fns(struct tls_logger * logger, int pid, int tid)
 			(uint32_t)tv.tv_sec, (uint32_t)tv.tv_usec);
 	assert(fn_len < MAX_LOGGER_FN);
 
+	const char * post_fix = "ckpt";
+	if (dead)
+		post_fix = "dead";
 	fn_len = snprintf(logger->ckpt_fn, MAX_CKPT_FN,
-			"%s/%d-%d-%010u-%010u.ckpt",
+			"%s/%d-%d-%010u-%010u.%s",
 			LOG_DIR, pid, tid,
-			(uint32_t)tv.tv_sec, (uint32_t)tv.tv_usec);
+			(uint32_t)tv.tv_sec, (uint32_t)tv.tv_usec, post_fix);
 	assert(fn_len < MAX_CKPT_FN);
 	TRACE(LOGGER, "logger file name: %s\n", logger->log_fn);
 	TRACE(LOGGER, "checkpoint file name: %s\n", logger->ckpt_fn);
 }
+
+void
+reset_ckpt_log_names(bool_t dead)
+{
+	struct thread_private_data * tpd = get_tpd();
+	reset_fns(&tpd->logger, tpd->pid, tpd->tid, dead);
+}
+
 
 void
 init_logger(struct tls_logger * logger, int pid, int tid)
@@ -82,7 +93,7 @@ init_logger(struct tls_logger * logger, int pid, int tid)
 			LOG_PAGES_NR * PAGE_SIZE);
 
 	/* generate log and checkpoint file name */
-	reset_fns(logger, pid, tid);
+	reset_fns(logger, pid, tid, FALSE);
 }
 
 void
@@ -90,7 +101,7 @@ reset_logger(struct tls_logger * logger, int pid, int tid)
 {
 	logger->log_buffer_current = logger->log_buffer_start;
 	logger->log_buffer_end = logger->log_buffer_start + MAX_LOGGER_SIZE;
-	reset_fns(logger, pid, tid);
+	reset_fns(logger, pid, tid, FALSE);
 }
 
 void

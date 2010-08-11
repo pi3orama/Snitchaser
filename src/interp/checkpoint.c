@@ -8,6 +8,7 @@
 #include <common/debug.h>
 #include <interp/checkpoint.h>
 #include <interp/mm.h>
+#include <interp/logger.h>
 
 #include <xasm/syscall.h>
 #include <xasm/string.h>
@@ -342,6 +343,14 @@ make_checkpoint(struct pusha_regs * regs, void * eip)
 	 * call do_make_checkpoint */
 	do_make_checkpoint(regs, eip);
 }
+
+void
+make_dead_checkpoint(struct pusha_regs * regs, void * eip)
+{
+	reset_ckpt_log_names(TRUE);
+	do_make_checkpoint(regs, eip);
+}
+
 
 // vim:ts=4:sw=4
 

@@ -67,6 +67,8 @@ fork_make_checkpoint(struct pusha_regs * regs, void * eip);
 void
 make_checkpoint(struct pusha_regs * regs, void * eip);
 
+void
+make_dead_checkpoint(struct pusha_regs * regs, void * eip);
 #endif
 
 // vim:ts=4:sw=4
