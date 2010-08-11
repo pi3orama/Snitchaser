@@ -348,7 +348,7 @@ void
 make_dead_checkpoint(struct pusha_regs * regs, void * eip)
 {
 	reset_ckpt_log_names(TRUE);
-	do_make_checkpoint(regs, eip);
+	fork_make_checkpoint(regs, eip);
 }
 
 
