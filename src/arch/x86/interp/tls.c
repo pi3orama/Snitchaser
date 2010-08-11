@@ -332,12 +332,13 @@ unmap_tpd(struct thread_private_data * tpd)
 	assert(spin_is_locked(&__tls_ctl_lock));
 	int err;
 	/* release build don't use tnr */
-	unsigned int tnr ATTR(unused) = tpd->tnr;
+	unsigned int tnr = tpd->tnr;
+	clear_tls_slot(tnr);
+
 	err = INTERNAL_SYSCALL_int80(munmap, 2,
 			tpd->tls_base, TLS_STACK_SIZE);
 	assert(err == 0);
 	DEBUG(TLS, "tls for tnr=%d is cleared\n", tnr);
-	clear_tls_slot(tnr);
 }
 
 void
@@ -347,6 +348,10 @@ clear_tls(void)
 	unsigned int tnr = tpd->tnr;
 	void * stack_base = get_tls_base();
 	assert((uint32_t)stack_base == (uint32_t)TNR_TO_STACK(tnr));
+
+	void * cur_esp;
+	asm volatile ("movl %%esp, %0" : "=Rm" (cur_esp));
+	assert((cur_esp < stack_base) || (cur_esp > stack_base + TLS_STACK_SIZE));
 
 	unmap_tpd_pages(tpd);
 	/* unmap this tls */
@@ -360,7 +365,6 @@ clear_tls(void)
 	unmap_tpd(tpd);
 
 	unlock_tls();
-
 	return;
 }
 
@@ -381,15 +385,6 @@ update_tls(void)
 	tpd->tid = tid;
 
 	reset_logger(&tpd->logger, pid, tid);
-}
-
-ATTR(noreturn) void
-__thread_exit(int n)
-{
-	WARNING(TLS, "isn't finished! needs to clear all TLS status\n");
-	clear_tls();
-	INTERNAL_SYSCALL_int80(exit, 1, n);
-	while(1);
 }
 
 void

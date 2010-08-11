@@ -114,7 +114,8 @@ extern struct list_head tpd_list_head;
 /* init_tls and clear_tls should be called
  * with thread original stack, not the snitchaser's
  * TLS stack! */
-extern void init_tls(void);
+extern void
+init_tls(void);
 
 extern struct thread_private_data *
 create_new_tls(void);

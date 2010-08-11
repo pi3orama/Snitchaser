@@ -20,6 +20,18 @@ pre_exit(struct pusha_regs * regs)
 
 	struct thread_private_data * tpd = get_tpd();
 	make_dead_checkpoint(regs, tpd->target);
+
+	/* clear tls */
+	asm volatile (
+			"movl %[exit_val], %%ebx\n"
+			"movl %[old_esp], %%esp\n"
+			"call clear_tls\n"
+			"movl $1, %%eax\n"
+			"int $0x80\n"
+			:
+			: [exit_val] "mr" (regs->ebx),
+			  [old_esp] "mr" (tpd->old_stack_top));
+
 	return 0;
 }
 #endif

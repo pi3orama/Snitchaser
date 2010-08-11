@@ -25,13 +25,6 @@ __xprintf(const char * fmt, ...);
 extern void
 relocate_interp(void);
 
-/* 
- * __thread_exit only stops current thread.
- * It needs to clear all tls status.
- * defined in tls.c
- */
-extern ATTR(noreturn) void __thread_exit(int n);
-
 /*
  * __exit() stops the whole thread group
  * */
