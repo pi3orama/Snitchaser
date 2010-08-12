@@ -299,7 +299,9 @@ append_buffer(void * data, size_t size)
 	spin_lock(&tpd->logger.logger_lock);
 	struct tls_logger * logger = &tpd->logger;
 
-	TRACE(LOGGER, "append %d bytes into buffer\n", size);
+	TRACE(LOGGER, "append %d bytes into buffer:"
+			"log_buffer_current=%p, log_buffer_end=%p\n",
+			size, logger->log_buffer_current, logger->log_buffer_end);
 
 	if (logger->log_buffer_current + size <
 			logger->log_buffer_end)

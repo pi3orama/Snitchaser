@@ -24,6 +24,7 @@ post_mmap2(struct pusha_regs * regs)
 	TRACE(LOG_SYSCALL, "post mmap2, eax=0x%x, len=%d\n",
 			regs->eax, regs->ecx);
 	void * ptr = (void*)regs->eax;
+	uint32_t port = regs->edx;
 	if (PTR_CORRECT(ptr)) {
 		size_t len = regs->ecx;
 		if ((int)(regs->edi) > 0) {
@@ -36,11 +37,22 @@ post_mmap2(struct pusha_regs * regs)
 			assert(file_size > start_pos);
 			unsigned long long aval_size = file_size - start_pos;
 			size_t real_size = (len < aval_size) ? (len) : ((size_t)(aval_size));
-			INT_VAL(real_size);
-			BUFFER(ptr, real_size);
-		} else {
-			INT_VAL(len);
+
+			len = real_size;
+		}
+
+		INT_VAL(len);
+		if (port & PROT_READ) {
 			BUFFER(ptr, len);
+		} else {
+			int err = INTERNAL_SYSCALL_int80(mprotect, 3, ptr,
+					len, port | PROT_READ);
+			assert(err == 0);
+			BUFFER(ptr, len);
+
+			err = INTERNAL_SYSCALL_int80(mprotect, 3, ptr,
+					len, port);
+			assert(err == 0);
 		}
 	}
 	TRACE(LOG_SYSCALL, "end post mmap2\n");
