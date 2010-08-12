@@ -42,6 +42,7 @@ SET(SYSCALLS
 	waitpid.c
 	getdents64.c
 	epoll_wait.c
+	gettimeofday.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

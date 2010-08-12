@@ -73,13 +73,16 @@ void
 reset_ckpt_log_names(bool_t dead)
 {
 	struct thread_private_data * tpd = get_tpd();
+	spin_lock(&(tpd->logger.logger_lock));
 	reset_fns(&tpd->logger, tpd->pid, tpd->tid, dead);
+	spin_unlock(&(tpd->logger.logger_lock));
 }
 
 
 void
 init_logger(struct tls_logger * logger, int pid, int tid)
 {
+	INIT_SPINLOCK_UNLOCKED(&(logger->logger_lock));
 	logger->check_logger_buffer = check_logger_buffer;
 
 	logger->log_buffer_start = alloc_pages(LOG_PAGES_NR, FALSE);
@@ -107,8 +110,11 @@ reset_logger(struct tls_logger * logger, int pid, int tid)
 void
 close_logger(struct tls_logger * logger)
 {
-	if (logger->log_buffer_start == NULL)
+	spin_lock(&(logger->logger_lock));
+	if (logger->log_buffer_start == NULL) {
+		spin_unlock(&(logger->logger_lock));
 		return;
+	}
 	free_pages(logger->log_buffer_start, LOG_PAGES_NR);
 	destroy_tls_compress(&logger->compress);
 	/* don't use memset: the file name of logger and ckpt
@@ -118,6 +124,7 @@ close_logger(struct tls_logger * logger)
 	logger->log_buffer_start = NULL;
 	logger->log_buffer_current = NULL;
 	logger->log_buffer_end = NULL;
+	spin_unlock(&(logger->logger_lock));
 }
 
 static void *
@@ -248,13 +255,17 @@ void
 do_check_logger_buffer(void)
 {
 	struct thread_private_data * tpd = get_tpd();
-	if (tpd->logger.log_buffer_current < tpd->logger.log_buffer_end)
+	spin_lock(&(tpd->logger.logger_lock));
+	if (tpd->logger.log_buffer_current < tpd->logger.log_buffer_end) {
+		spin_unlock(&(tpd->logger.logger_lock));
 		return;
+	}
 	if (tpd->logger.log_buffer_current >= tpd->logger.log_buffer_end) {
 		/* we need check buffer again because signal may raise after
 		 * the previous check and before we block signal */
 		flush_logger_buffer(&tpd->logger);
 	}
+	spin_unlock(&(tpd->logger.logger_lock));
 	return;
 }
 
@@ -262,7 +273,9 @@ void
 flush_logger(void)
 {
 	struct thread_private_data * tpd = get_tpd();
+	spin_lock(&(tpd->logger.logger_lock));
 	flush_logger_buffer(&tpd->logger);
+	spin_unlock(&(tpd->logger.logger_lock));
 }
 
 void
@@ -273,6 +286,9 @@ append_buffer(void * data, size_t size)
 	assert(size != 0);
 
 	struct thread_private_data * tpd = get_tpd();
+
+	spin_lock(&(tpd->logger.logger_lock));
+
 	struct tls_logger * logger = &tpd->logger;
 
 	TRACE(LOGGER, "append %d bytes into buffer\n", size);
@@ -283,6 +299,7 @@ append_buffer(void * data, size_t size)
 		/* we have enough space */
 		memcpy(logger->log_buffer_current, data, size);
 		logger->log_buffer_current += size;
+		spin_unlock(&(tpd->logger.logger_lock));
 		return;
 	}
 
@@ -297,6 +314,8 @@ append_buffer(void * data, size_t size)
 		/* now we have enough space */
 		memcpy(logger->log_buffer_current, data, size);
 		logger->log_buffer_current += size;
+
+		spin_unlock(&(tpd->logger.logger_lock));
 		return;
 	}
 
@@ -309,6 +328,7 @@ append_buffer(void * data, size_t size)
 	write_to_logger_file(fd, data, size);
 	close_logger_file(fd);
 
+	spin_unlock(&(tpd->logger.logger_lock));
 	return;
 }
 

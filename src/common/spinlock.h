@@ -19,7 +19,7 @@ struct spinlock_t {
 #define SPINLOCK_UNLOCKED { .raw_lock = RAW_SPINLOCK_UNLOCKED }
 
 #define DEF_SPINLOCK_UNLOCKED(name)	struct spinlock_t name = SPINLOCK_UNLOCKED
-#define INIT_SPINLOCK_UNLOCKED(l)	do { INIT_RAW_SPINLOCK_UNLOCKED(&(l->raw_lock)); } while(0);
+#define INIT_SPINLOCK_UNLOCKED(l)	do { INIT_RAW_SPINLOCK_UNLOCKED(&((l)->raw_lock)); } while(0);
 
 static __AI void
 spin_lock(struct spinlock_t * lock)

@@ -53,6 +53,8 @@ def_trivial_handler(epoll_ctl)
 def_handler(epoll_wait)
 def_trivial_handler(set_robust_list)
 def_trivial_handler(madvise)
+def_trivial_handler(setrlimit)
+def_handler(gettimeofday)
 
 // vim:ts=4:sw=4
 

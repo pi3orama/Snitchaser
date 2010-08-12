@@ -10,6 +10,7 @@
 #include <interp/compress.h>
 
 #include <xasm/logger.h>
+#include <common/spinlock.h>
 
 #define LOG_PAGES_NR	(1024*10)
 
@@ -24,6 +25,7 @@
 #define MAX_LOGGER_FN	(128)
 #define MAX_CKPT_FN		(MAX_LOGGER_FN)
 struct tls_logger {
+	struct spinlock_t logger_lock;
 	/* check logger return addr */
 	void * check_buffer_return;
 	/* check logger nuffer */

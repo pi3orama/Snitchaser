@@ -166,6 +166,17 @@ DEF_SUB_HANDLER(socketpair)(int family, int type, int protocol,
 	return 0;
 }
 
+DEF_SUB_HANDLER(getsockopt)(int fd, int level, int optname,
+		uintptr_t optval, uintptr_t optlen, int retval)
+{
+	if (retval >= 0) {
+		assert(optlen != 0);
+		BUFFER((int*)(optlen), sizeof(int));
+		BUFFER((void*)(optval), *((int*)(optlen)));
+	}
+	return 0;
+}
+
 DEF_HANDLER(socketcall)
 {
 	int call = regs->ebx;
@@ -201,6 +212,8 @@ DEF_HANDLER(socketcall)
 		return SUB_HANDLER(accept)(a0, a1, a2, retval);
 	case SYS_SOCKETPAIR:
 		return SUB_HANDLER(socketpair)(a0, a1, a2, a[3], retval);
+	case SYS_GETSOCKOPT:
+		return SUB_HANDLER(getsockopt)(a0, a1, a2, a[3], a[4], retval);
 		/* trivial sockcalls */
 	case SYS_CONNECT:
 	case SYS_SENDTO:

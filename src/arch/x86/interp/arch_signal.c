@@ -102,11 +102,43 @@ arch_init_signal(void)
 
 }
 
+static void *
+get_ori_address(struct code_block_t * blk, void * _addr)
+{
+	uintptr_t addr = (uintptr_t)(_addr);
+	uintptr_t block_start = (uintptr_t)(blk->entry);
+	/* 11 byte is movl $0xffffffff, %fs:OFFSET_CODE_CACHE_CURRENT_BLOCK,
+	 * see branch_template.S */
+	uintptr_t compiled_code_start = (uintptr_t)(blk->__code) + 11;
+	uintptr_t compiled_code_end = (uintptr_t)(blk->ori_code_end);
+
+	if ((addr <= compiled_code_end) && (addr >= compiled_code_start))
+		return (void*)(block_start + (_addr - compiled_code_start));
+	return (void*)(block_start + (compiled_code_end - compiled_code_start));
+}
+
 static void
 signal_terminate(int num, struct thread_private_data * tpd, void * addr,
-		struct pusha_regs * regs)
+		struct pusha_regs * regs, void * _frame, int frame_sz)
 {
-	WARNING(SIGNAL, "terminated by signaled %d\n", num);
+	WARNING(SIGNAL, "thread %d-%d terminated by signaled %d\n",
+			tpd->pid, tpd->tid, num);
+	if (num == SIGSEGV) {
+		WARNING(SIGNAL, "SIGSEGV raised\n");
+		if (frame_sz == sizeof(struct sigframe)) {
+			struct sigframe * frame = (struct sigframe*)(_frame);
+			void * eip = (void*)(frame->sc.ip);
+			void * ori_addr = get_ori_address(tpd->code_cache.current_block,
+					(void *)eip);
+			WARNING(SIGNAL, "eip=%p, ori_addr=%p\n", eip, ori_addr);
+		} else {
+			struct rt_sigframe * rt_frame = (struct rt_sigframe*)(_frame);
+			void * eip = (void*)rt_frame->uc.uc_mcontext.ip;
+			void * ori_addr = get_ori_address(tpd->code_cache.current_block,
+					(void *)eip);
+			WARNING(SIGNAL, "(rt) eip=%p, ori_addr=%p\n", eip, ori_addr);
+		}
+	}
 
 	/* see the code of flush logger, we must write this mark by ONCE
 	 * to prevent potential log flush */
@@ -283,7 +315,8 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 	if (act->sa_handler == SIG_IGN) {
 		/* ignore actions:  */
 		if ((num == 32) || (num == 33))
-			signal_terminate(num, tpd, ori_addr, regs);
+			signal_terminate(num, tpd, ori_addr, regs,
+					frame, frame_sz);
 		/* else: sigreturn */
 		return 1;
 	} else if (act->sa_handler == SIG_DFL) {
@@ -299,7 +332,8 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 				(num == SIGCONT)) {
 			return 1;
 		} else {
-			signal_terminate(num, tpd, ori_addr, regs);
+			signal_terminate(num, tpd, ori_addr, regs,
+					frame, frame_sz);
 		}
 	} else {
 		if (!tpd->no_record_signals) {
@@ -312,21 +346,6 @@ common_wrapper_sighandler(int num, void * frame, size_t frame_sz,
 		}
 	}
 	return 0;
-}
-
-static void *
-get_ori_address(struct code_block_t * blk, void * _addr)
-{
-	uintptr_t addr = (uintptr_t)(_addr);
-	uintptr_t block_start = (uintptr_t)(blk->entry);
-	/* 11 byte is movl $0xffffffff, %fs:OFFSET_CODE_CACHE_CURRENT_BLOCK,
-	 * see branch_template.S */
-	uintptr_t compiled_code_start = (uintptr_t)(blk->__code) + 11;
-	uintptr_t compiled_code_end = (uintptr_t)(blk->ori_code_end);
-
-	if ((addr <= compiled_code_end) && (addr >= compiled_code_start))
-		return (void*)(block_start + (_addr - compiled_code_start));
-	return (void*)(block_start + (compiled_code_end - compiled_code_start));
 }
 
 int
