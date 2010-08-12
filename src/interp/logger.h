@@ -74,6 +74,9 @@ extern void
 flush_logger(void);
 
 extern void
+flush_all_logger(void);
+
+extern void
 append_buffer(void * data, size_t size);
 
 #define def_append_buffer_TYPE(t, tn)	\

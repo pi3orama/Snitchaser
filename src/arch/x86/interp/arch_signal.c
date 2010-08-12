@@ -17,6 +17,7 @@
 #include <interp/mm.h>
 #include <interp/logger.h>
 #include <interp/checkpoint.h>
+#include <common/spinlock.h>
 
 k_sigset_t
 arch_replay_mask_signals(void)
@@ -138,6 +139,11 @@ signal_terminate(int num, struct thread_private_data * tpd, void * addr,
 					(void *)eip);
 			WARNING(SIGNAL, "(rt) eip=%p, ori_addr=%p\n", eip, ori_addr);
 		}
+
+		if (spin_is_locked(&tpd->logger.logger_lock)) {
+			WARNING(SIGNAL, "SIGSEGV raise when logging!\n");
+			spin_unlock(&tpd->logger.logger_lock);
+		}
 	}
 
 	/* see the code of flush logger, we must write this mark by ONCE
@@ -153,7 +159,7 @@ signal_terminate(int num, struct thread_private_data * tpd, void * addr,
 			SIGNAL_MARK, addr, SIGNAL_TERMINATE, num
 		};
 		append_buffer(&mark, sizeof(mark));
-		flush_logger();
+		flush_all_logger();
 		make_dead_checkpoint(regs, tpd->target);
 	}
 

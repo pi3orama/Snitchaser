@@ -16,7 +16,7 @@ pre_exit_group(struct pusha_regs * regs)
 {
 	/* we need to flush log */
 	VERBOSE(SYSTEM, "program call exit_group(%d), flush log\n", regs->ebx);
-	flush_logger();
+	flush_all_logger();
 
 	struct thread_private_data * tpd = get_tpd();
 	make_dead_checkpoint(regs, tpd->target);
