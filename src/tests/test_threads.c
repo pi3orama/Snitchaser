@@ -33,10 +33,23 @@ int main()
 	pthread_join(p1, NULL);
 
 
-	if (xxx == 2)
-		printf("aaaaaaa %d\n", xxx);
-	else
-		printf("bbbbbbbbbb\n");
+	switch (xxx) {
+		case 1:
+			printf("1\n");
+			break;
+		case 2:
+			printf("2\n");
+			break;
+		case 3:
+			printf("3\n");
+			break;
+		case 4:
+			printf("4\n");
+			break;
+		default:
+			printf("error\n");
+			break;
+	};
 
 	return 0;
 }
