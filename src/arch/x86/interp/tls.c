@@ -295,7 +295,7 @@ copy_init_base_tpd(struct thread_private_data * dst,
 	cpy_field(argp_first);
 	cpy_field(argp_last);
 	cpy_field(conf_trace_fork);
-	cpy_field(conf_trace_clone);
+	cpy_field(conf_untrace_clone);
 	cpy_field(no_record_signals);
 
 #undef cpy_field

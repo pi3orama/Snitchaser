@@ -190,7 +190,7 @@ clone_post_child(struct pusha_regs regs)
 	assert(flags == (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
 	            CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|
 	            CLONE_CHILD_CLEARTID));
-	if (!tpd->conf_trace_clone)
+	if (tpd->conf_untrace_clone)
 		return 1;
 
 	/* prepare trace clone */
@@ -283,7 +283,7 @@ post_clone(struct pusha_regs * regs)
 	case (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
 			CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|
 			CLONE_CHILD_CLEARTID):
-		if (tpd->conf_trace_clone) {
+		if (!tpd->conf_untrace_clone) {
 			return __post_trace_clone(tpd, regs);
 		} else {
 			return __post_untrace_clone(tpd, regs);
