@@ -44,6 +44,7 @@ SET(SYSCALLS
 	epoll_wait.c
 	gettimeofday.c
 	pread64.c
+	prctl.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})

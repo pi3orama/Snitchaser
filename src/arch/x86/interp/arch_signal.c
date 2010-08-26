@@ -207,6 +207,27 @@ signal_terminate(int num, struct thread_private_data * tpd, void * addr,
 }
 
 static void
+correct_sigsuspend(struct thread_private_data * tpd,
+		struct sigcontext * psc, uintptr_t ori_ip)
+{
+	/* according to test_sigsuspend.c, the procmask in sighandler
+	 * is (actmask) | (suspendmask) | (thissignal) */
+	/* see logger.S */
+	extern int after_normal_int80[]
+		__attribute__((visibility("hidden")));
+
+	if (ori_ip == (uintptr_t)after_normal_int80) {
+		DEBUG(SIGNAL, "signal breaks rt_sigsuspend\n");
+		uint32_t * psuspend_mask = (uint32_t *)(psc->bx);
+		if (psuspend_mask == NULL)
+			return;
+		/* unblock_sigmask should has been set to actmask */
+		tpd->unblock_sigmask[0] |= psuspend_mask[0];
+		tpd->unblock_sigmask[1] |= psuspend_mask[1];
+	}
+}
+
+static void
 signal_stop(int num, struct thread_private_data * tpd)
 {
 	WARNING(SIGNAL, "stopped by signal %d\n", num);
@@ -260,7 +281,8 @@ signal_handler(int num, struct thread_private_data * tpd,
 	 * correct address when recording.  we also MUST save original eip to
 	 * enable replayer to resume at correct address. */
 	uintptr_t * backup_space = retcode;
-	backup_space[0] = psc->ip;
+	uintptr_t ori_ip = psc->ip;
+	backup_space[0] = ori_ip;
 	backup_space[1] = (uintptr_t)(tpd->target);
 
 	/* MUST SAVE tpd->target for sigreturn */
@@ -296,15 +318,21 @@ signal_handler(int num, struct thread_private_data * tpd,
 	psc->__ssh = ((uintptr_t)tpd->code_cache.current_block) & 0xffff;
 	psc->ss = ((uintptr_t)(tpd->code_cache.current_block) >> 16);
 
+	/* according to test-code/test_sigmask.c, the sigmask in
+	 * signal handler is from
+	 * (sigaction's sa_mask) | (block this signal),
+	 * NOT  (actmask) | (procmask) | (thissignal) */
 	tpd->unblock_sigmask[0] =
 		tpd->sigactions[num - 1].sa_mask.sig[0];
 	tpd->unblock_sigmask[1] =
 		tpd->sigactions[num - 1].sa_mask.sig[1];
 
+	if (tpd->current_syscall_nr == __NR_rt_sigsuspend)
+		correct_sigsuspend(tpd, psc, ori_ip);
+
 	/* block current signal */
 	int _num = num - 1;
 	tpd->unblock_sigmask[_num / 64] |= (1UL << (_num % 64));
-
 }
 
 /* if return 1, sigreturn (or rt_sigreturn) (ignore) */

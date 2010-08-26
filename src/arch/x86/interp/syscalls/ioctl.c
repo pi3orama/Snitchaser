@@ -45,6 +45,8 @@ TTY_IOCTL(int fd, int cmd, int arg, struct pusha_regs * regs)
 		return 0;
 	case TCSETA:
 		return 0;
+	case FIOASYNC:
+		return 0;
 	default:
 		FATAL(LOG_SYSCALL, "doesn't know such tty ioctl: 0x%x\n", cmd);
 	}

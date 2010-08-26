@@ -56,6 +56,14 @@ def_trivial_handler(madvise)
 def_trivial_handler(setrlimit)
 def_handler(gettimeofday)
 def_handler(pread64)
-
+def_trivial_handler(mkdir)
+def_trivial_handler(setsid)
+def_trivial_handler(umask)
+def_trivial_handler(dup2)
+def_trivial_handler(pwrite64)
+def_handler(prctl)
+/* rt_sigsuspend is NONTRIVIAL!
+ * see correct_sigsuspend in arch_signal.c */
+def_trivial_handler(rt_sigsuspend)
 // vim:ts=4:sw=4
 

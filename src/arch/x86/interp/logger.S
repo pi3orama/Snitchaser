@@ -87,11 +87,18 @@ vdso_syscall_entry:
 	movl $1, %eax
 	int $0x80
 
+.globl before_nosignal_int80
+.globl after_nosignal_int80
+.globl before_normal_int80
+.globl after_normal_int80
+
 nosignal_processing:
 	popf
 	popa
 	movl %fs:OFFSET_OLD_STACK_TOP, %esp
+before_nosignal_int80:
 	int $0x80
+after_nosignal_int80:
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
 	movl %fs:OFFSET_STACK_TOP, %esp
 	pusha
@@ -107,7 +114,9 @@ normal_processing:
 
 	/* reset sigprocmask here */
 	UNBLOCK_SIGPROCMASK
+before_normal_int80:
 	int $0x80
+after_normal_int80:
 	BLOCK_SIGPROCMASK
 
 	movl %esp, %fs:OFFSET_OLD_STACK_TOP
