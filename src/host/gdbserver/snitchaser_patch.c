@@ -274,7 +274,7 @@ ptrace_single_step(bool_t is_branch,
 
 	if (eip != real_eip) {
 		WARNING(XGDBSERVER, "branch inconsistent at 0x%x: "
-				"should be 0x%x, not %x\n",
+				"should be 0x%x, not 0x%x\n",
 				(uintptr_t)psaved_regs->eip, real_eip, eip);
 		ptrace_set_eip(SN_info.pid, real_eip);
 	}

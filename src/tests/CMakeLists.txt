@@ -22,6 +22,7 @@ SET(tests
 	test_gscall
 	test_sigthread
 	test_sigsuspend
+	test_localtime_r
 	)
 
 build_interp_tests("${tests}" "")
@@ -98,6 +99,10 @@ SET_PROPERTY(TARGET test_sigsuspend
 	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
 	)
 
+SET_PROPERTY(TARGET test_localtime_r
+	APPEND
+	PROPERTY LINK_FLAGS "-Wl,-dynamic-linker,${CMAKE_BINARY_DIR}/src/interp/libinterp.so"
+	)
 
 ## SET(CAN_USE_ASSEMBLER TRUE)
 ## ENABLE_LANGUAGE(ASM-S)
