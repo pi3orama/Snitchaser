@@ -66,8 +66,16 @@ reset_fns(struct tls_logger * logger, int pid, int tid, int dead)
 			LOG_DIR, pid, tid,
 			(uint32_t)tv.tv_sec, (uint32_t)tv.tv_usec, post_fix);
 	assert(fn_len < MAX_CKPT_FN);
+
+	fn_len = snprintf(logger->init_stack_fn, MAX_CKPT_FN,
+			"%s/%d-%d-%010u-%010u.stak",
+			LOG_DIR, pid, tid,
+			(uint32_t)tv.tv_sec, (uint32_t)tv.tv_usec);
+	assert(fn_len < MAX_CKPT_FN);
+
 	TRACE(LOGGER, "logger file name: %s\n", logger->log_fn);
 	TRACE(LOGGER, "checkpoint file name: %s\n", logger->ckpt_fn);
+	TRACE(LOGGER, "init stack file name: %s\n", logger->init_stack_fn);
 }
 
 void

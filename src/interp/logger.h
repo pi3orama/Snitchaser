@@ -43,6 +43,7 @@ struct tls_logger {
 	/* the logger and checkpoint file */
 	char log_fn[MAX_LOGGER_FN];
 	char ckpt_fn[MAX_CKPT_FN];
+	char init_stack_fn[MAX_CKPT_FN];
 };
 
 /* this tag is flushed into logger file before the real data */

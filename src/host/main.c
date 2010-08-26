@@ -218,6 +218,7 @@ build_argp(void * vargp_start, void * vargp_last,
 		ptr += strlen(ptr) + 1;
 	}
 
+	assert(envs != NULL);
 	/* the last slot of 'envs' is actually 'exec_fn' */
 	*exec_fn = envs[nr_envs - 1];
 	envs[nr_envs - 1] = NULL;
@@ -294,6 +295,26 @@ dup_sockpair(void * unuse ATTR_UNUSED)
 	close(TARGET_SOCKPAIR_FD_TEMP);
 }
 
+static void *
+get_init_stack(const char * init_stack_fn)
+{
+	assert(init_stack_fn != NULL);
+	int fd = open(init_stack_fn, O_RDONLY);
+	assert(fd > 0);
+
+	int sz;
+	int err = read(fd, &sz, sizeof(sz));
+	assert(err == sizeof(sz));
+
+	void * ptr = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, fd, 0);
+
+	close(fd);
+
+	assert((int)(ptr) != -1);
+	assert(ptr != NULL);
+	return ptr + sizeof(sz);
+} 
+
 static pid_t
 do_recover(struct opts * opts)
 {
@@ -333,9 +354,17 @@ do_recover(struct opts * opts)
 			THROW_FATAL(EXP_WRONG_CKPT, "argp_last 0x%x not in stack",
 					argp_last);
 
-		void * vstack_top = region_data(stack_region);
-		void * vargp_first = argp_first - stack_region->start + vstack_top;
-		void * vargp_last = argp_last - stack_region->start + vstack_top;
+		void * vargp_first;
+		void * vargp_last;
+
+		if (opts->init_stack_fn == NULL) {
+			void * vstack_top = region_data(stack_region);
+			vargp_first = argp_first - stack_region->start + vstack_top;
+			vargp_last = argp_last - stack_region->start + vstack_top;
+		} else {
+			vargp_first = get_init_stack(opts->init_stack_fn);
+			vargp_last = vargp_first + (argp_last - argp_first);
+		}
 
 		char * exec_fn = NULL;
 		/* if the process is start by libinterp.so, use exec_fn_2 */
@@ -604,16 +633,23 @@ main(int argc, char * argv[])
 
 	CASSERT(REPLAYER_HOST, file_exist(opts->ckpt_fn),
 			"checkpoint file (-c) %s doesn't exist\n", opts->ckpt_fn);
-	CASSERT(REPLAYER_HOST, file_exist(opts->interp_so_fn),
-			"interp so file (-i) %s doesn't exist\n", opts->interp_so_fn);
-	CASSERT(REPLAYER_HOST, opts->gdbserver_comm != NULL,
-			"doesn't set gdbserver COMM using '-m'\n");
-	CASSERT(REPLAYER_HOST, ((opts->sckpt_fn == NULL) ||
-				(file_exist(opts->sckpt_fn))),
-			"sckpt %s doesn't exist\n", opts->sckpt_fn);
 
 	if (opts->sckpt_fn == NULL)
 		opts->sckpt_fn = opts->ckpt_fn;
+
+	if (!opts->read_ckpt) {
+		CASSERT(REPLAYER_HOST, file_exist(opts->interp_so_fn),
+				"interp so file (-i) %s doesn't exist\n", opts->interp_so_fn);
+		CASSERT(REPLAYER_HOST, opts->gdbserver_comm != NULL,
+				"doesn't set gdbserver COMM using '-m'\n");
+		CASSERT(REPLAYER_HOST, ((opts->sckpt_fn == NULL) ||
+					(file_exist(opts->sckpt_fn))),
+				"sckpt %s doesn't exist\n", opts->sckpt_fn);
+	}
+
+	CASSERT(REPLAYER_HOST, ((opts->init_stack_fn == NULL) ||
+			(file_exist(opts->init_stack_fn))),
+			"init stack file %s doesn't exist\n", opts->init_stack_fn);
 
 	catch_var(const char *, interp_so_full_name, NULL);
 	define_exp(exp);

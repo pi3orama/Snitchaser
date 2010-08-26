@@ -183,6 +183,12 @@ append_region(int fd, struct mem_region * region, const char * fn)
 				region->prot);
 		assert(err == 0);
 	}
+
+	/* do some extra work for dump_init_stack */
+	if (strncmp("[stack]", fn, sizeof("[stack]")) == 0) {
+		struct thread_private_data * tpd = get_tpd();
+		tpd->stack_top_addr = (void*)(region->end);
+	}
 }
 
 static void
@@ -313,7 +319,36 @@ do_make_checkpoint(struct pusha_regs * regs, void * eip)
 
 	/* flush mem region */
 	flush_mem_regions(fd);
-	
+
+	err = INTERNAL_SYSCALL_int80(close, 1, fd);
+	assert(err == 0);
+
+
+	if (strcmp(logger->ckpt_fn +
+				strlen(logger->ckpt_fn) +
+				- 4, "dead") == 0)
+		return;
+
+	/* create init stack file */
+	fd = INTERNAL_SYSCALL_int80(open, 3,
+			logger->init_stack_fn, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+	if (fd <= 0)
+		FATAL(CKPT, "create init stack file %s failed: %d\n",
+				logger->init_stack_fn, fd);
+	/* it should have beed inited when we append_region(stack) */
+	assert(tpd->stack_top_addr != NULL);
+
+	size_t init_stack_size =
+		(uintptr_t)(tpd->stack_top_addr) -
+		(uintptr_t)(tpd->argp_first);
+	err = INTERNAL_SYSCALL_int80(write, 3,
+			fd, &init_stack_size, sizeof(init_stack_size));
+	assert(err == sizeof(init_stack_size));
+
+	err = INTERNAL_SYSCALL_int80(write, 3,
+			fd, tpd->argp_first, init_stack_size);
+	assert(err == (int)init_stack_size);
+
 	err = INTERNAL_SYSCALL_int80(close, 1, fd);
 	assert(err == 0);
 }

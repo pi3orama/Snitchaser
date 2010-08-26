@@ -89,6 +89,10 @@ struct thread_private_data {
 	int fs_val;
 	volatile int futex_data;
 
+	/* set in append_region (checkpoint.c) when append stack region
+	 * to stack */
+	void * stack_top_addr;
+
 	/* access: *fs:(0x3000 - 4); stores: the base (lowest)
 	 * address of the TLS section */
 	void * tls_base;

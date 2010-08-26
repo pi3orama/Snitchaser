@@ -26,6 +26,8 @@ static struct argp_option options[] = {
 		"set name of checkpoint file", 0},
 	{"sckptfn",		's', "state-checkpoint-filename", 0,
 		"name of state checkpoint file", 0},
+	{"initstack",	't', "init-stack filename", 0,
+		"name of initstack", 0},
 	{"readckpt",	'r', NULL, 0,
 		"don't run target exec, only read and check ckpt", 0},
 	{"logfn",		'l', "log-filename", 0,
@@ -51,6 +53,7 @@ static struct argp_option options[] = {
 static struct opts opts = {
 	.ckpt_fn	= NULL,
 	.sckpt_fn	= NULL,
+	.init_stack_fn			= NULL,
 	.read_ckpt	= 0,
 	.gdbserver_debug 		= 0,
 	.gdbserver_remote_debug = 0,
@@ -85,6 +88,9 @@ parse_opt(int key, char *arg, struct argp_state *state ATTR(unused))
 		return 0;
 	case 'u':
 		opts.uncompress_log = TRUE;
+		return 0;
+	case 't':
+		opts.init_stack_fn = arg;
 		return 0;
 	case -1:
 		opts.gdbserver_debug = 1;
