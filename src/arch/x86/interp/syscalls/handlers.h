@@ -65,5 +65,9 @@ def_handler(prctl)
 /* rt_sigsuspend is NONTRIVIAL!
  * see correct_sigsuspend in arch_signal.c */
 def_trivial_handler(rt_sigsuspend)
+def_trivial_handler(sendfile64)
+def_handler(setitimer)
+def_trivial_handler(unlink)
+
 // vim:ts=4:sw=4
 

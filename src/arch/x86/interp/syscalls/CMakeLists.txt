@@ -45,6 +45,7 @@ SET(SYSCALLS
 	gettimeofday.c
 	pread64.c
 	prctl.c
+	setitimer.c
 	)
 
 ADD_LIBRARY(log_syscall STATIC ${SRC})
