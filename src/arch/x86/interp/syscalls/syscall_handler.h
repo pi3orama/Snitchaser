@@ -62,7 +62,10 @@ append_buffer(void * data, size_t size);
 # define DEF_HANDLER(name)	int post_##name(struct pusha_regs * regs ATTR_UNUSED)
 # define INT_VAL(x)		({int ___x = (int)(x); append_buffer(&___x, sizeof(int)); ___x;})
 # define PTR_VAL(x)		({void * ___x = (void*)(x); append_buffer(&___x, sizeof(void *)); ___x;})
-# define BUFFER(p, s)	do {append_buffer((p), (s));} while(0)
+# define BUFFER(p, s)	do {	\
+	if ((p) != NULL) \
+		append_buffer((p), (s)); \
+} while(0)
 #endif
 
 #ifdef REPLAY_LIBRARY
@@ -75,7 +78,10 @@ read_syscall_data(void * ptr, size_t len);
 # define DEF_HANDLER(name)	int replay_##name(struct pusha_regs * regs ATTR_UNUSED)
 # define INT_VAL(x)		({read_syscall_data(&(x), sizeof(int)); (x);})
 # define PTR_VAL(x)		({read_syscall_data(&(x), sizeof(void*)); (void*)(x);})
-# define BUFFER(p, s)	do {read_syscall_data((p), (s));} while(0)
+# define BUFFER(p, s)	do {	\
+	if ((p) != NULL)	\
+		read_syscall_data((p), (s));	\
+} while(0)
 #endif
 
 #define EAX_AS_INT		(INT_VAL(regs->eax))

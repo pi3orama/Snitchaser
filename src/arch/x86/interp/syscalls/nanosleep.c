@@ -21,7 +21,8 @@ DEF_HANDLER(nanosleep)
 	TRACE(LOG_SYSCALL, "nanosleep\n");
 	int r = regs->eax;
 	struct k_timespec * ospec = (void*)(regs->ecx);
-	BUFFER(ospec, sizeof(*ospec));
+	if (ospec != NULL)
+		BUFFER(ospec, sizeof(*ospec));
 	return 0;
 }
 #endif
