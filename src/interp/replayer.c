@@ -457,6 +457,7 @@ replayer_main(void * real_esp, volatile struct pusha_regs pusha_regs)
 
 	INTERNAL_SYSCALL_int80(close, 1, ckpt_fd);
 
+
 	/* restoring thread area */
 	/* thread areas */
 	TRACE(REPLAYER_TARGET, "restoring thread area\n");

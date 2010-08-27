@@ -156,6 +156,10 @@ append_region(int fd, struct mem_region * region, const char * fn)
 	/* stat target file */
 	int region_sz = region->end - region->start;
 	region_sz = get_aval_size(fn, region->offset, region_sz);
+	uintptr_t tmp = region->start + region_sz + PAGE_SIZE - 1;
+	tmp = tmp - (tmp % PAGE_SIZE);
+	region_sz = tmp - region->start;
+
 	TRACE(CKPT, "aval region_sz=%d\n", region_sz);
 
 	err = INTERNAL_SYSCALL_int80(write, 3,

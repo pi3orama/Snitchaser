@@ -259,8 +259,8 @@ do_read_ckpt(struct opts * opts)
 	while (*((uint32_t*)(ptr)) != MEM_REGIONS_END_MARK) {
 		struct mem_region * r = ptr;
 		assert(r->end > r->start);
-		printf("%08x-%08x:%llx:%01x %s\n", r->start, r->end,
-				r->offset, r->prot, r->fn);
+		printf("%08x-%08x:%llx:%01x %s (0x%x)\n", r->start, r->end,
+				r->offset, r->prot, r->fn, *region_p_real_sz(r));
 		ptr = next_region(r);
 	}
 }
@@ -657,14 +657,15 @@ main(int argc, char * argv[])
 	pid_t child_pid = 0;
 
 	TRY(exp) {
-		set_catched_var(interp_so_full_name,
-				get_full_name(opts->interp_so_fn));
-		opts->interp_so_full_name = interp_so_full_name;
-
 		if (opts->read_ckpt) {
 			do_read_ckpt(opts);
 			break;
 		}
+
+		set_catched_var(interp_so_full_name,
+				get_full_name(opts->interp_so_fn));
+		opts->interp_so_full_name = interp_so_full_name;
+
 
 		/* build socketpair */
 		int err;
