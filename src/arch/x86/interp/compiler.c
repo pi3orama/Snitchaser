@@ -454,6 +454,7 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 #undef COMP_Jxx_32b
 #undef COMP_Jxx
 				case 0x31: {
+					WARNING(COMPILER, "rdtsc at %p\n", branch);
 					/* this is rdtsc */
 					template_sym(__rdtsc_template_start);
 					template_sym(__rdtsc_template_end);
