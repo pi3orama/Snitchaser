@@ -62,12 +62,11 @@ __post_trace_fork(struct thread_private_data * tpd, struct pusha_regs * regs)
 	/* generate new checkpoints */
 	fork_make_checkpoint(regs, tpd->target);
 
-	/* ******************* */
-	/* If don't reset code cache, test_fork will fail.
-	 * Don't know why. */
+#if 0
+	/* we don't need to reset code cache. */
 	clear_code_cache(&tpd->code_cache);
 	init_code_cache(&tpd->code_cache);
-	/* ******************* */
+#endif
 
 	return 0;
 }

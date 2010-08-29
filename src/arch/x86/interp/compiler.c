@@ -460,7 +460,14 @@ compile_branch(uint8_t * patch_code, uint8_t * branch,
 					template_sym(__rdtsc_template_end);
 					template_sym(__rdtsc_template_save_return_addr);
 					/* why we lost this statement for half an year? */
-					*pexit_type = EXIT_UNCOND_DIRECT;
+					/* NOTICE!
+					 * we shouldn't set pexit_type as EXIT_UNCOND_DIRECT,
+					 * although rdtsc infact is such a 'branch'. if not,
+					 * the 'rdtsc' instruction will be overwritten after
+					 * next block be compiled.
+					 * */
+					*pexit_type = EXIT_COND_DIRECT;
+
 					int tmpsz = template_sz(__rdtsc_template);
 					int patch_sz = tmpsz +
 						real_branch_template_sz;
