@@ -61,6 +61,11 @@ compute(void)
 	PRINT(stack_top_addr, STACK_TOP_ADDR);
 
 	PRINT(current_syscall_nr, CURRENT_SYSCALL_NR);
+
+	PRINT(conf_trace_fork, CONF_TRACE_FORK);
+	PRINT(conf_untrace_clone, CONF_UNTRACE_CLONE);
+	PRINT(conf_selection, CONF_SELECTION);
+
 }
 
 int main()

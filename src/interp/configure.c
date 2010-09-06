@@ -13,12 +13,29 @@
 #include <xasm/tls.h>
 #include <xasm/string.h>
 
+static int
+_atoi(const char * x)
+{
+	int s = 0;
+	if (x == NULL)
+		return s;
+
+	while ((*x <= '9') && (*x >= '0')) {
+		s *= 10;
+		s += *x++ - '0';
+	}
+
+	return s;
+}
+
 static void
 reset_all_conf(struct thread_private_data * tpd)
 {
-#define bool_conf(a, b)		tpd->b = FALSE;
+#define bool_conf(a, b, def)		tpd->b = def;
+#define int_conf(a, b, def)		tpd->b = def;
 #include <interp/confentries.h>
 #undef bool_conf
+#undef int_conf
 }
 
 #define cmp_get(___key, ___str) ({const char * ___res;	\
@@ -33,10 +50,11 @@ reset_all_conf(struct thread_private_data * tpd)
 static void
 print_all_conf(struct thread_private_data * tpd)
 {
-#define bool_conf(a, b)	\
-	VERBOSE(LOADER, a " = %d\n", tpd->b);
+#define bool_conf(a, b, c)	VERBOSE(LOADER, a " = %s\n", (tpd->b) ? "true" : "false");
+#define int_conf(a, b, c)	VERBOSE(LOADER, a " = %d\n", tpd->b);
 #include <interp/confentries.h>
 #undef bool_conf
+#undef int_conf
 }
 
 static void
@@ -44,7 +62,7 @@ check_env(struct thread_private_data * tpd, const char * entry)
 {
 	assert(entry != NULL);
 	assert(tpd != NULL);
-#define bool_conf(___key, ___item) do {\
+#define bool_conf(___key, ___item, __def) do {\
 	const char * val;\
 	if ((val = cmp_get(___key, entry))) {\
 		if (strncmp(val, "1", 1) == 0)\
@@ -52,8 +70,18 @@ check_env(struct thread_private_data * tpd, const char * entry)
 	}\
 } while(0);
 
+#define int_conf(___key, ___item, __def) do {\
+	const char * val;\
+	if ((val = cmp_get(___key, entry))) {\
+		tpd->___item = _atoi(val);\
+	}\
+} while(0);
+
+
+
 #include <interp/confentries.h>
 #undef bool_conf
+#undef int_conf
 }
 
 void

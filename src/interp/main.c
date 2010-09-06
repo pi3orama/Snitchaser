@@ -64,6 +64,26 @@ reexec(void * old_esp)
 	return;
 }
 
+static void
+set_selection(void)
+{
+	struct thread_private_data * tpd = get_tpd();
+	VERBOSE(LOADER, "selection factor: %d/1000\n", tpd->conf_selection);
+	if (tpd->conf_selection == -1) {
+		tpd->conf_selection = 1;
+		return ;
+	}
+
+	/* read ht-timer */
+	uint32_t timer = read_ht_timer() & 0xffffffffULL;
+	int mod = timer % 1000;
+	if (mod < tpd->conf_selection)
+		tpd->conf_selection = 1;
+	else
+		tpd->conf_selection = 0;
+	return;
+}
+
 
 /* use volatile to suppress optimization, guarantee stack top modification  */
 extern void * loader(void * oldesp, int * pesp_add);
@@ -97,17 +117,28 @@ xmain(volatile struct pusha_regs regs, uintptr_t unused1 ATTR(unused),
 	struct thread_private_data * tpd = get_tpd();
 	DEBUG(LOADER, "pid from tpd: %d; tid from tpd: %d\n",
 			tpd->pid, tpd->tid);
-
-	/* init arch signal */
-	arch_init_signal();
-
-	/* set argp_start */
-	tpd->argp_first = (uintptr_t)argp_first;
-	tpd->argp_last = (uintptr_t)argp_last;
-	assert(argv[argc] == NULL);
-
 	/* retrieve configuration from env */
 	read_conf(oldesp);
+
+	/* check conf_selection: if selected,
+	 * set to non-zero; if not; set to zero */
+	set_selection();
+	if (tpd->conf_selection) {
+		VERBOSE(LOADER, "selected\n");
+
+		/* init arch signal */
+		arch_init_signal();
+
+		/* set argp_start */
+		tpd->argp_first = (uintptr_t)argp_first;
+		tpd->argp_last = (uintptr_t)argp_last;
+		assert(argv[argc] == NULL);
+
+	} else {
+		VERBOSE(LOADER, "doesn't be selected\n");
+	}
+
+
 
 	/* for debug use */
 	print_auxv();

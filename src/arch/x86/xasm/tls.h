@@ -83,6 +83,7 @@ struct thread_private_data {
 	/* configurations */
 	bool_t conf_trace_fork;
 	bool_t conf_untrace_clone;
+	int conf_selection;
 
 	/* for untrace clone, no_record_signals is true */
 	bool_t no_record_signals;

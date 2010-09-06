@@ -34,10 +34,27 @@ _start:
 	movl -20(%esp), %esp
 	/* begin running */
 	2:
+
+	/* check conf_selection */
+	pusha
+	pushf
+	movl %fs:OFFSET_CONF_SELECTION, %eax
+	test %eax, %eax
+	jz not_selected
+	/* selected */
+	popf
+	popa
+
 	/* tpd->first_branch is set in interp/tls.c,
 	 * to first_branch in user_entry.c */
 	call *%fs:OFFSET_FIRST_BRANCH
 	/* pop the user_entry, stack top is interp_entry */
+	addl $4, %esp
+	ret
+
+not_selected:
+	popf
+	popa
 	addl $4, %esp
 	ret
 

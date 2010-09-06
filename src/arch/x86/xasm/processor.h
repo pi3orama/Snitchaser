@@ -181,6 +181,17 @@ build_reg_state(struct reg_state * p, struct pusha_regs * r,
 
 	p->fx_state = *fx;
 }
+
+
+static inline uint64_t
+read_ht_timer(void)
+{
+	uint32_t x1;
+	uint32_t x2;
+	asm volatile ("rdtsc\n" : "=a" (x1), "=d" (x2));
+	return (((uint64_t)x2) << 32) + x1;
+}
+
 #endif
 
 // vim:ts=4:sw=4
