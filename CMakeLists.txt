@@ -75,7 +75,8 @@ IF (NOT arch_set MATCHES "^yes$")
 ENDIF (NOT arch_set MATCHES "^yes$")
 unset(arch_set)
 
-MACRO(check_kernel varname descstr checkstr checkpathlist checkfile)
+MACRO(check_kernel varname descstr checkstr checkpathlist checkfilelist
+		hitfilevarname)
 SET(${varname} "auto" CACHE PATH ${descstr})
 set (${ks_set} "no")
 IF (${varname} STREQUAL "auto")
@@ -84,24 +85,38 @@ IF (${varname} STREQUAL "auto")
 	FOREACH(c ${checkpathlist})
 		IF (NOT ks_set STREQUAL "yes")
 			MESSAGE(STATUS "check ${checkstr} from ${c}")
-			EXECUTE_PROCESS(COMMAND stat ${c}/${checkfile}
-				OUTPUT_QUIET
-				RESULT_VARIABLE stat_res)
-			IF (stat_res STREQUAL "0")
-				SET(${varname} ${c} CACHE PATH ${descstr}
-					FORCE)
-				SET(ks_set "yes")
-			ENDIF (stat_res STREQUAL "0")
+
+			FOREACH(f ${checkfilelist})
+				EXECUTE_PROCESS(COMMAND stat ${c}/${f}
+					OUTPUT_QUIET
+					ERROR_QUIET
+					RESULT_VARIABLE stat_res)
+				IF (stat_res STREQUAL "0")
+					SET(${varname} ${c} CACHE PATH ${descstr}
+						FORCE)
+					SET(ks_set "yes")
+					SET(${hitfilevarname} ${c}/${f})
+					MESSAGE(STATUS "found ${hitfilevarname}")
+					BREAK()
+				ENDIF (stat_res STREQUAL "0")
+			ENDFOREACH(f)
 		ENDIF (NOT ks_set STREQUAL "yes")
 	ENDFOREACH (c)
 ELSE (${varname} STREQUAL "auto")
-	EXECUTE_PROCESS(COMMAND stat ${${varname}}/${checkfile}
-		OUTPUT_QUIET
-		RESULT_VARIABLE stat_res)
-	IF (stat_res STREQUAL "0")
-		SET(ks_set "yes")
-	ENDIF (stat_res STREQUAL "0")
+	FOREACH(f ${checkfilelist})
+		EXECUTE_PROCESS(COMMAND stat ${${varname}}/${f}
+			OUTPUT_QUIET
+			ERROR_QUIET
+			RESULT_VARIABLE stat_res)
+		IF (stat_res STREQUAL "0")
+			SET(ks_set "yes")
+			SET(${hitfilevarname} ${${varname}}/${f})
+			MESSAGE(STATUS "found ${hitfilevarname}")
+			BREAK()
+		ENDIF (stat_res STREQUAL "0")
+	ENDFOREACH(f)
 ENDIF (${varname} STREQUAL "auto")
+
 IF (NOT ks_set STREQUAL "yes")
 	MESSAGE(FATAL_ERROR "unable to find ${checkstr}")
 ENDIF (NOT ks_set STREQUAL "yes")
@@ -113,12 +128,12 @@ check_kernel(KERNEL_SOURCE
 	"kernel source tree, 'auto' means auto-detect"
 	"kernel source tree"
 	"/lib/modules/${CMAKE_HOST_SYSTEM_VERSION}/source;/usr/src/linux"
-	Kbuild)
+	Kbuild useless)
 check_kernel(KERNEL_BUILD_SOURCE
 	"kernel build tree, 'auto' means auto-detect"
 	"kernel build tree"
 	"/lib/modules/${CMAKE_HOST_SYSTEM_VERSION}/build;/usr/src/linux"
-	include/linux/autoconf.h)
+	"include/linux/autoconf.h;include/generated/autoconf.h" conffile)
 
 # build kernel related files cflags and include dir
 EXECUTE_PROCESS(COMMAND gcc -print-file-name=include
@@ -131,10 +146,10 @@ EXECUTE_PROCESS(COMMAND stat ${KERNEL_BUILD_SOURCE}/include2
 	RESULT_VARIABLE have_include2)
 IF (have_include2 STREQUAL "0")
 	# source and build tree are different
-	SET(KERNEL_CFLAGS "-isystem ${gcc_inc} -I${KERNEL_BUILD_SOURCE}/include -I${KERNEL_BUILD_SOURCE}/include2 -I${KERNEL_SOURCE}/include -I${KERNEL_SOURCE}/arch/${KARCH}/include -include ${KERNEL_BUILD_SOURCE}/include/linux/autoconf.h -I${KERNEL_SOURCE}/arch/${KARCH}/kernel -I${KERNEL_BUILD_SOURCE}/arch/${KARCH}/kernel -D__KERNEL__ -DCONFIG_AS_CFI=1 -DCONFIG_AS_CFI_SIGNAL_FRAME=1 -Wno-unused -Wno-strict-aliasing")
+	SET(KERNEL_CFLAGS "-isystem ${gcc_inc} -I${KERNEL_BUILD_SOURCE}/include -I${KERNEL_BUILD_SOURCE}/include2 -I${KERNEL_SOURCE}/include -I${KERNEL_SOURCE}/arch/${KARCH}/include -include ${conffile} -I${KERNEL_SOURCE}/arch/${KARCH}/kernel -I${KERNEL_BUILD_SOURCE}/arch/${KARCH}/kernel -I${KERNEL_SOURCE}/include  -D__KERNEL__ -DCONFIG_AS_CFI=1 -DCONFIG_AS_CFI_SIGNAL_FRAME=1 -Wno-unused -Wno-strict-aliasing")
 
 ELSE (have_include2 STREQUAL "0")
-	SET(KERNEL_CFLAGS "-isystem ${gcc_inc} -I${KERNEL_BUILD_SOURCE}/include -I${KERNEL_SOURCE}/arch/${KARCH}/include -include ${KERNEL_BUILD_SOURCE}/include/linux/autoconf.h -D__KERNEL__ -DCONFIG_AS_CFI=1 -DCONFIG_AS_CFI_SIGNAL_FRAME=1 -Wno-unused -Wno-strict-aliasing")
+	SET(KERNEL_CFLAGS "-isystem ${gcc_inc} -I${KERNEL_BUILD_SOURCE}/include -I${KERNEL_SOURCE}/arch/${KARCH}/include -include ${conffile} -I${KERNEL_SOURCE}/arch/${KARCH}/kernel -I${KERNEL_BUILD_SOURCE}/arch/${KARCH}/kernel -I${KERNEL_SOURCE}/include -D__KERNEL__ -DCONFIG_AS_CFI=1 -DCONFIG_AS_CFI_SIGNAL_FRAME=1 -Wno-unused -Wno-strict-aliasing")
 ENDIF (have_include2 STREQUAL "0")
 
 unset(have_include2)
@@ -161,10 +176,18 @@ ELSE(GCC_HAVE_NO_CLOBBER)
 	don't report any warning about var clobbered")
 ENDIF(GCC_HAVE_NO_CLOBBER)
 
+SET(ENABLE_WEXTRA ON CACHE BOOL
+	"Whether to use -Wextra gcc flag")
+
+SET(wextra_flag_str "")
+IF (ENABLE_WEXTRA)
+	SET(wextra_flag_str "-Wextra")
+ENDIF (ENABLE_WEXTRA)
+
 
 # Build types
 SET(MARCH_CFLAGS "-march=${MARCH} -mtune=${MARCH}")
-SET(CMAKE_C_FLAGS "-std=gnu99 -Wall -Wextra -D_GNU_SOURCE -fno-stack-protector ${MARCH_CFLAGS} ${clobbered_flags}" CACHE
+SET(CMAKE_C_FLAGS "-std=gnu99 -Wall ${wextra_flag_str} -D_GNU_SOURCE -fno-stack-protector ${MARCH_CFLAGS} ${clobbered_flags}" CACHE
 	STRING "Flags used by the compiler during all build types." FORCE)
 SET(CMAKE_C_FLAGS_DEBUG "-g -O0 -DSNITCHASER_DEBUG" CACHE
 	STRING "Flags used by the compiler during debug builds." FORCE)
